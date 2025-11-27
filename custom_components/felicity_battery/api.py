@@ -24,12 +24,11 @@ class FelicityClient:
         try:
             reader, writer = await asyncio.open_connection(self._host, self._port)
 
-            # Та же команда, что мы посылали через printf | nc
+            
             writer.write(b"wifilocalMonitor:get dev real infor")
             await writer.drain()
 
             try:
-                # 4 кБ за глаза, но можно и больше
                 data = await asyncio.wait_for(reader.read(8192), timeout=3.0)
             finally:
                 writer.close()
@@ -47,30 +46,29 @@ class FelicityClient:
             raise FelicityApiError("No data received from battery")
 
         text = data.decode("ascii", errors="ignore").strip()
-        _LOGGER.debug("Raw Felicity response: %r", text)
+        _LOGGER.debug("Raw Felicity response (before patch): %r", text)
 
-        # ---- ФИКС КРИВОГО JSON ----
-        # Некоторые прошивки отдают что-то вроде:
-        # ..."Estate":960,"Bfault":0[[140,130],[256,258]],...
-        # т.е. массив температур без имени поля BTemp.
-        # Попробуем аккуратно вставить "BTemp":
+        if text.startswith("{'") and '"' not in text:
+            patched = text.replace("'", '"')
+            _LOGGER.debug("Patched single quotes -> double quotes")
+            text = patched
         if '"BTemp":' not in text and '"Bfault":' in text:
-            fixed, n = re.subn(
-                r'"Bfault":\s*([-0-9]+)\s*\[\[',
-                r'"Bfault":\1,"BTemp":[[',
-                text,
+            patched = text.replace(
+                '"Bfault":0[[', '"Bfault":0,"BTemp":[['
             )
-            if n:
-                _LOGGER.debug(
-                    "Patched Felicity JSON: inserted BTemp key (%s replacement(s))", n
-                )
-                text = fixed
-        # ---- КОНЕЦ ФИКСА ----
+            patched, n = re.subn(
+                r'"Bfault"\s*:\s*([-0-9]+)\s*\[\[',
+                r'"Bfault":\1,"BTemp":[[',
+                patched,
+            )
+            if patched != text:
+                _LOGGER.debug("Patched BTemp after Bfault (replacements=%s)", n)
+                text = patched
 
+        _LOGGER.debug("Felicity response (after patch): %r", text)
         try:
             parsed = json.loads(text)
         except Exception as err:
-            # сюда попадём, если даже после фикса JSON всё ещё кривой
             raise FelicityApiError(f"Invalid JSON from battery: {text}") from err
 
         return parsed
