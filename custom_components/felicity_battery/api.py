@@ -1,5 +1,4 @@
 from __future__ import annotations
-# -*- coding: utf-8 -*-
 
 import asyncio
 import json
@@ -26,7 +25,7 @@ class FelicityClient:
 
         - wifilocalMonitor:get dev real infor   -> runtime telemetry
         - wifilocalMonitor:get dev basice infor -> versions / type
-        - wifilocalMonitor:get dev set infor    -> config / limits (best-effort)
+        - wifilocalMonitor:get dev set infor    -> config / limits (multi-json)
         """
         # 1. Runtime data (обязательное)
         real_raw = await self._async_read_raw(b"wifilocalMonitor:get dev real infor")
@@ -55,6 +54,7 @@ class FelicityClient:
             set_text = set_raw.replace("'", '"').strip()
             merged: Dict[str, Any] = {}
 
+            # Основная попытка: аккуратно выделяем все верхнеуровневые JSON-объекты
             depth = 0
             buf: list[str] = []
             for ch in set_text:
@@ -70,11 +70,28 @@ class FelicityClient:
                         chunk = "".join(buf)
                         try:
                             part = json.loads(chunk)
-                        except Exception as err:
-                            _LOGGER.debug("Invalid JSON chunk in settings: %s", err)
+                        except Exception as json_err:
+                            _LOGGER.debug(
+                                "Invalid JSON chunk in settings: %s", json_err
+                            )
                         else:
-                            merged.update(part)
+                            if isinstance(part, dict):
+                                merged.update(part)
                         buf = []
+
+            # Fallback: если почему-то ничего не нашли, используем старый поиск первого объекта
+            if not merged:
+                first_json = self._extract_first_json_object(set_text)
+                if first_json:
+                    try:
+                        part = json.loads(first_json)
+                    except Exception as json_err:
+                        _LOGGER.debug(
+                            "Failed to parse settings with fallback JSON: %s", json_err
+                        )
+                    else:
+                        if isinstance(part, dict):
+                            merged.update(part)
 
             if merged:
                 data["_settings"] = merged
@@ -141,7 +158,7 @@ class FelicityClient:
         return text
 
     # --------------------------------------------------------------------- #
-    #                    ПАРСЕР 'dev real infor'                             #
+    #                    ПАРСЕР 'dev real infor'                            #
     # --------------------------------------------------------------------- #
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
