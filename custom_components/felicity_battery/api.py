@@ -43,7 +43,8 @@ class FelicityClient:
         except Exception as err:
             _LOGGER.debug("Failed to read basic info: %s", err)
 
-        # 3. Settings / limits (����� ���� � ���������� JSON-������)
+        
+        # 3. Settings / limits (может быть в нескольких JSON-блоках)
         try:
             set_raw = await self._async_read_raw(
                 b"wifilocalMonitor:get dev set infor"
@@ -51,7 +52,27 @@ class FelicityClient:
             set_text = set_raw.replace("'", '"').strip()
             merged: Dict[str, Any] = {}
 
-            json_objects = re.findall(r"\{.*?\}", set_text)
+            # Разбираем несколько JSON-объектов подряд:
+            depth = 0
+            start = None
+            json_objects: list[str] = []
+
+            for i, ch in enumerate(set_text):
+                if ch == "{":
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif ch == "}":
+                    if depth > 0:
+                        depth -= 1
+                        if depth == 0 and start is not None:
+                            json_objects.append(set_text[start : i + 1])
+                            start = None
+
+            # На всякий случай fallback на простое регулярное выражение
+            if not json_objects:
+                json_objects = re.findall(r"\{.*?\}", set_text)
+
             for obj in json_objects:
                 try:
                     part = json.loads(obj)
@@ -62,9 +83,13 @@ class FelicityClient:
 
             if merged:
                 data["_settings"] = merged
-                _LOGGER.debug("Merged Felicity settings: %s", merged)
+                _LOGGER.debug(
+                    "Merged Felicity settings (%d keys): %s",
+                    len(merged),
+                    merged,
+                )
             else:
-                _LOGGER.debug("No valid JSON found in settings payload")
+                _LOGGER.debug("No valid JSON found in settings payload: %r", set_text)
 
         except Exception as err:
             _LOGGER.debug("Failed to read settings info: %s", err)
