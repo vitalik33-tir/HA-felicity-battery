@@ -96,21 +96,12 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
 
-from .const import CONF_HOST
-
     @property
     def device_info(self) -> dict[str, Any]:
         data = self.coordinator.data or {}
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
-        host = self._entry.data.get(CONF_HOST)
-
-        if host:
-            serial_display = f"{serial} (IP {host})"
-        else:
-            serial_display = serial
-
         return {
             "identifiers": {(DOMAIN, serial)},   
             "name": self._entry.data.get("name", "Felicity Battery"),
@@ -118,8 +109,7 @@ from .const import CONF_HOST
             "model": "FLA48200",
             "sw_version": sw_version,
             "serial_number": serial_display,
-            "configuration_url": f"http://{host}" if host else None,
-        }
+          }
 
 
     @property
