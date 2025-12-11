@@ -1,4 +1,5 @@
 from __future__ import annotations
+# -*- coding: utf-8 -*-
 
 from datetime import timedelta
 import logging
@@ -12,7 +13,13 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import FelicityApiError, FelicityClient
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, PLATFORMS
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+    CONF_DEVICE_TYPE,
+    DEVICE_TYPE_BATTERY,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     host: str = entry.data["host"]
     port: int = entry.data["port"]
+    device_type: str = entry.data.get(CONF_DEVICE_TYPE, DEVICE_TYPE_BATTERY)
 
     client = FelicityClient(host, port)
 
@@ -50,6 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
         "coordinator": coordinator,
+        "device_type": device_type,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

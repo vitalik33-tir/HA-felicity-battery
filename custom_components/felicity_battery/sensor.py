@@ -1,4 +1,5 @@
 from __future__ import annotations
+# -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
 from typing import Any
@@ -18,6 +19,7 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -66,6 +68,46 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash",
     ),
+    # Разделённые токи/мощности
+    FelicitySensorDescription(
+        key="charge_current",
+        name="Battery Charge Current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:current-dc",
+        suggested_display_precision=1,
+    ),
+    FelicitySensorDescription(
+        key="discharge_current",
+        name="Battery Discharge Current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:current-dc",
+        suggested_display_precision=1,
+    ),
+    FelicitySensorDescription(
+        key="charge_power",
+        name="Battery Charge Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:flash",
+    ),
+    FelicitySensorDescription(
+        key="discharge_power",
+        name="Battery Discharge Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:flash",
+    ),
+    FelicitySensorDescription(
+        key="direction",
+        name="Battery Direction",
+        icon="mdi:swap-vertical",
+    ),
     FelicitySensorDescription(
         key="temp1",
         name="Battery Temp 1",
@@ -84,6 +126,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         icon="mdi:thermometer",
         suggested_display_precision=1,
     ),
+
+    # --- Диагностика по ячейкам ---
     FelicitySensorDescription(
         key="max_cell_v",
         name="Max Cell Voltage",
@@ -91,7 +135,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-high",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="min_cell_v",
@@ -100,7 +145,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-low",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_drift",
@@ -109,10 +155,11 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:chart-bell-curve",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- Напряжения ячеек 1–16 ---
+    # --- Напряжения ячеек 1–16 (диагностика) ---
     FelicitySensorDescription(
         key="cell_1_v",
         name="Cell 1 Voltage",
@@ -120,7 +167,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_2_v",
@@ -129,7 +177,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_3_v",
@@ -138,7 +187,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_4_v",
@@ -147,7 +197,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_5_v",
@@ -156,7 +207,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_6_v",
@@ -165,7 +217,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_7_v",
@@ -174,7 +227,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_8_v",
@@ -183,7 +237,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_9_v",
@@ -192,7 +247,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_10_v",
@@ -201,7 +257,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_11_v",
@@ -210,7 +267,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_12_v",
@@ -219,7 +277,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_13_v",
@@ -228,7 +287,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_14_v",
@@ -237,7 +297,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_15_v",
@@ -246,7 +307,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_16_v",
@@ -255,28 +317,33 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
     # --- Лимиты по фактическим данным ---
     FelicitySensorDescription(
         key="max_charge_current",
-        name="Max Charge Current",
+        name="Max Charge Current (runtime)",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
         suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="max_discharge_current",
-        name="Max Discharge Current",
+        name="Max Discharge Current (runtime)",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
         suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
+
+    # --- Состояние / коды ---
     FelicitySensorDescription(
         key="state",
         name="Battery State",
@@ -284,47 +351,67 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
     ),
     FelicitySensorDescription(
         key="fault",
-        name="Battery Fault",
+        name="Battery Fault Code",
         icon="mdi:alert",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="warning",
-        name="Battery Warning",
+        name="Battery Warning Code",
         icon="mdi:alert-circle",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- Инфо / прошивки / тип ---
+    # --- Инфо / прошивки / тип / серийники ---
     FelicitySensorDescription(
         key="fw_version",
         name="Battery FW Version",
         icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="bms_m1_fw",
         name="Battery BMS M1 FW",
         icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="bms_m2_fw",
         name="Battery BMS M2 FW",
         icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="battery_type",
         name="Battery Type",
         icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="battery_subtype",
         name="Battery SubType",
         icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="serial",
+        name="Battery Serial",
+        icon="mdi:identifier",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="wifi_serial",
+        name="WiFi Module Serial",
+        icon="mdi:wifi",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- Настройки / пороги ---
+    # --- Настройки / пороги (dev set infor) ---
     FelicitySensorDescription(
         key="ttl_pack",
         name="Battery Pack Count",
         icon="mdi:battery-variant",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_v_80",
@@ -333,7 +420,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-80",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_v_20",
@@ -342,7 +430,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-20",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_over_voltage",
@@ -351,7 +440,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash-alert",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="cell_under_voltage",
@@ -360,7 +450,8 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash-alert-outline",
-        suggested_display_precision=2,
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="charge_limit_setting",
@@ -370,6 +461,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
         suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
         key="discharge_limit_setting",
@@ -379,6 +471,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
         suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -421,13 +514,17 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
+
         return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
+            "serial_number": serial,
         }
+
+
 
     @property
     def native_value(self) -> Any:
@@ -466,6 +563,57 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             i = i_raw / 10
             return round(v * i)
 
+        if key == "charge_current":
+            i_raw = get_nested(("Batt", 1, 0))
+            if i_raw is None:
+                return None
+            current = i_raw / 10.0
+            return round(current, 1) if current > 0 else 0.0
+
+        if key == "discharge_current":
+            i_raw = get_nested(("Batt", 1, 0))
+            if i_raw is None:
+                return None
+            current = i_raw / 10.0
+            return round(-current, 1) if current < 0 else 0.0
+
+        if key == "charge_power":
+            v_raw = get_nested(("Batt", 0, 0))
+            i_raw = get_nested(("Batt", 1, 0))
+            if v_raw is None or i_raw is None:
+                return None
+            v = v_raw / 1000.0
+            i = i_raw / 10.0
+            p = v * i
+            return round(p) if p > 0 else 0
+
+        if key == "discharge_power":
+            v_raw = get_nested(("Batt", 0, 0))
+            i_raw = get_nested(("Batt", 1, 0))
+            if v_raw is None or i_raw is None:
+                return None
+            v = v_raw / 1000.0
+            i = i_raw / 10.0
+            p = v * i
+            return round(-p) if p < 0 else 0
+
+        if key == "direction":
+            i_raw = get_nested(("Batt", 1, 0))
+            if i_raw is not None:
+                current = i_raw / 10.0
+                if current > 0.05:
+                    return "charging"
+                if current < -0.05:
+                    return "discharging"
+            code = data.get("Estate")
+            if code == 9152:
+                return "charging"
+            if code == 5056:
+                return "discharging"
+            if code in (960, 320):
+                return "idle"
+            return "idle"
+
         if key == "temp1":
             raw = get_nested(("BTemp", 0, 0))
             return round(raw / 10, 1) if raw is not None else None
@@ -476,18 +624,18 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         if key == "max_cell_v":
             raw = get_nested(("BMaxMin", 0, 0))
-            return round(raw / 1000, 2) if raw is not None else None
+            return round(raw / 1000, 3) if raw is not None else None
 
         if key == "min_cell_v":
             raw = get_nested(("BMaxMin", 0, 1))
-            return round(raw / 1000, 2) if raw is not None else None
+            return round(raw / 1000, 3) if raw is not None else None
 
         if key == "cell_drift":
             max_raw = get_nested(("BMaxMin", 0, 0))
             min_raw = get_nested(("BMaxMin", 0, 1))
             if max_raw is None or min_raw is None:
                 return None
-            return round((max_raw - min_raw) / 1000, 2)
+            return round((max_raw - min_raw) / 1000, 3)
 
         # --- Cell voltages 1–16 ---
         if key.startswith("cell_") and key.endswith("_v"):
@@ -498,8 +646,8 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             raw = get_nested(("BatcelList", 0, idx))
             if raw is None or raw == 65535:
                 return None
-            # мВ -> В, два знака
-            return round(raw / 1000.0, 2)
+            # мВ -> В, три знака
+            return round(raw / 1000.0, 3)
 
         # --- Limits from runtime data ---
         if key == "max_charge_current":
@@ -555,25 +703,31 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         if key == "battery_subtype":
             return basic.get("SubType")
 
+        if key == "serial":
+            return data.get("DevSN") or data.get("wifiSN")
+
+        if key == "wifi_serial":
+            return data.get("wifiSN")
+
         # --- Settings / thresholds ---
         if key == "ttl_pack":
             return settings.get("ttlPack")
 
         if key == "cell_v_80":
             raw = settings.get("wCVP80")
-            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
 
         if key == "cell_v_20":
             raw = settings.get("wCVP20")
-            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
 
         if key == "cell_over_voltage":
             raw = settings.get("cVolHi")
-            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
 
         if key == "cell_under_voltage":
             raw = settings.get("cVolLo")
-            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
 
         if key == "charge_limit_setting":
             raw = settings.get("bCCHi2")
@@ -591,12 +745,38 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
+        # Агрегация по ячейкам для сенсора cell_drift
+        if key == "cell_drift":
+            attrs: dict[str, Any] = {}
+            cells_list = data.get("BatcelList")
+            if (
+                isinstance(cells_list, list)
+                and cells_list
+                and isinstance(cells_list[0], list)
+            ):
+                raw_cells = cells_list[0]
+                cells_v: list[float] = []
+                for c in raw_cells:
+                    if isinstance(c, int) and c != 65535:
+                        cells_v.append(round(c / 1000.0, 3))
+                if cells_v:
+                    attrs["cells"] = cells_v
+                    max_v = max(cells_v)
+                    min_v = min(cells_v)
+                    attrs["max_cell_voltage"] = max_v
+                    attrs["min_cell_voltage"] = min_v
+                    attrs["max_cell_index"] = cells_v.index(max_v) + 1
+                    attrs["min_cell_index"] = cells_v.index(min_v) + 1
+            return attrs or None
+
         if key in {
             "fw_version",
             "bms_m1_fw",
             "bms_m2_fw",
             "battery_type",
             "battery_subtype",
+            "serial",
+            "wifi_serial",
         }:
             basic = data.get("_basic")
             if isinstance(basic, dict):

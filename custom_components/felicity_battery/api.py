@@ -25,14 +25,14 @@ class FelicityClient:
 
         - wifilocalMonitor:get dev real infor   -> runtime telemetry
         - wifilocalMonitor:get dev basice infor -> versions / type
-        - wifilocalMonitor:get dev set infor    -> config / limits (best-effort)
+        - wifilocalMonitor:get dev set infor    -> config / limits (multi-json)
         """
-        # 1. Runtime data (обязательное)
+        # 1. Runtime data
         real_raw = await self._async_read_raw(b"wifilocalMonitor:get dev real infor")
         real = self._parse_real_payload(real_raw)
         data: Dict[str, Any] = dict(real)
 
-        # 2. Basic info (версии, типы, серийники)
+        # 2. Basic info
         try:
             basic_raw = await self._async_read_raw(
                 b"wifilocalMonitor:get dev basice infor"
@@ -43,16 +43,54 @@ class FelicityClient:
         except Exception as err:
             _LOGGER.debug("Failed to read basic info: %s", err)
 
-        # 3. Settings / limits (может быть в нескольких пакетах)
+        
+        # 3. Settings / limits (может быть в нескольких JSON-блоках)
         try:
             set_raw = await self._async_read_raw(
                 b"wifilocalMonitor:get dev set infor"
             )
             set_text = set_raw.replace("'", '"').strip()
-            first_json = self._extract_first_json_object(set_text)
-            if first_json:
-                settings = json.loads(first_json)
-                data["_settings"] = settings
+            merged: Dict[str, Any] = {}
+
+            # Разбираем несколько JSON-объектов подряд:
+            depth = 0
+            start = None
+            json_objects: list[str] = []
+
+            for i, ch in enumerate(set_text):
+                if ch == "{":
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif ch == "}":
+                    if depth > 0:
+                        depth -= 1
+                        if depth == 0 and start is not None:
+                            json_objects.append(set_text[start : i + 1])
+                            start = None
+
+            # На всякий случай fallback на простое регулярное выражение
+            if not json_objects:
+                json_objects = re.findall(r"\{.*?\}", set_text)
+
+            for obj in json_objects:
+                try:
+                    part = json.loads(obj)
+                    merged.update(part)
+                except Exception as e:
+                    _LOGGER.debug("Skip invalid part in settings: %s", e)
+                    continue
+
+            if merged:
+                data["_settings"] = merged
+                _LOGGER.debug(
+                    "Merged Felicity settings (%d keys): %s",
+                    len(merged),
+                    merged,
+                )
+            else:
+                _LOGGER.debug("No valid JSON found in settings payload: %r", set_text)
+
         except Exception as err:
             _LOGGER.debug("Failed to read settings info: %s", err)
 
@@ -108,12 +146,11 @@ class FelicityClient:
         return text
 
     # --------------------------------------------------------------------- #
-    #                    ПАРСЕР 'dev real infor'                             #
+    #                         PARSER 'dev real infor'                       #
     # --------------------------------------------------------------------- #
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
         """Parse Felicity 'dev real infor' payload into dict we use."""
-        # строка уже JSON, но иногда с одинарными кавычками и хвостами
         norm = text.replace("'", '"')
         last_brace = norm.rfind("}")
         if last_brace != -1:
@@ -129,7 +166,7 @@ class FelicityClient:
             m = re.search(rf'"{key}"\s*:\s*([-0-9]+)', norm)
             return int(m.group(1)) if m else None
 
-        # Простые поля
+        # Simple fields
         result["CommVer"] = _find_int("CommVer")
         result["wifiSN"] = _find_str("wifiSN")
         result["DevSN"] = _find_str("DevSN")
@@ -203,7 +240,6 @@ class FelicityClient:
             else:
                 btemp = [[t1, t2]]
         else:
-            # fallback: берём первые два из Templist
             m = re.search(
                 r'"Templist"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]',
                 norm,
@@ -215,7 +251,7 @@ class FelicityClient:
         if btemp is not None:
             result["BTemp"] = btemp
 
-        # BatcelList – список напряжений ячеек в мВ
+        # BatcelList
         m = re.search(r'"BatcelList"\s*:\s*\[\s*\[([0-9,\s-]+)\]', norm)
         if m:
             cells_str = m.group(1)
@@ -233,21 +269,3 @@ class FelicityClient:
             )
 
         return result
-
-    @staticmethod
-    def _extract_first_json_object(text: str) -> str | None:
-        """Return substring of first JSON object in text (best-effort)."""
-        start = text.find("{")
-        if start == -1:
-            return None
-
-        depth = 0
-        for i, ch in enumerate(text[start:], start=start):
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[start : i + 1]
-
-        return text[start:] or None
