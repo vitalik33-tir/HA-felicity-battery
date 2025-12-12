@@ -10,13 +10,18 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import CONF_HOST
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_DEVICE_TYPE,
+    DEVICE_TYPE_BATTERY,
+    DEVICE_TYPE_INVERTER,
+)
 
 # Порог "большого" разброса по ячейкам, В
 CELL_DRIFT_HIGH_THRESHOLD_V = 0.03
@@ -74,10 +79,24 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
 
-    entities: list[FelicityBinarySensor] = [
-        FelicityBinarySensor(coordinator, entry, desc)
-        for desc in BINARY_SENSOR_DESCRIPTIONS
-    ]
+    device_type: str = data.get("device_type") or entry.data.get(
+        CONF_DEVICE_TYPE,
+        DEVICE_TYPE_BATTERY,
+    )
+
+    entities: list[BinarySensorEntity] = []
+
+    if device_type == DEVICE_TYPE_INVERTER:
+        from .inverter_binary_sensor import create_inverter_binary_sensors
+
+        entities.extend(create_inverter_binary_sensors(coordinator, entry))
+    else:
+        # Батарейные бинарные сенсоры — оставляем как было.
+        entities.extend(
+            FelicityBinarySensor(coordinator, entry, desc)
+            for desc in BINARY_SENSOR_DESCRIPTIONS
+        )
+
     async_add_entities(entities)
 
 
@@ -103,17 +122,24 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
-        host = self._entry.data.get(CONF_HOST)
-        serial_display = f"{serial} (IP {host})" if host else serial
 
-        return {
+        host = self._entry.data.get(CONF_HOST)
+
+        info: dict[str, Any] = {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial_display,
+            "serial_number": serial,
         }
+
+        if host:
+            info["configuration_url"] = f"http://{host}"
+            info["ip_address"] = host
+
+        return info
+
 
     @property
     def is_on(self) -> bool | None:
