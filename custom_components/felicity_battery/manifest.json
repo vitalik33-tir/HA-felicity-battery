@@ -1,8 +1,8 @@
 {
   "domain": "felicity_battery",
   "name": "Felicity Battery",
-  "description": "Home Assistant custom integration for Felicity FLA48200 batteries via local TCP API (port 53970).",
-  "version": "0.1.0",
+  "description": "Home Assistant custom integration for Felicity batteries via the local TCP API exposed by their Wi-Fi module (port 53970). Tested with FLA48200 and LUX-X-96050HG01.",
+  "version": "0.2.0",
   "documentation": "https://github.com/vitalik33-tir/ha-felicity-battery",
   "requirements": [],
   "codeowners": [

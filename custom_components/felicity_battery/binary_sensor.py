@@ -17,9 +17,23 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .sensor import _bcu_version, _fallback_model
 
-# Порог "большого" разброса по ячейкам, В
+# Threshold for a "large" cell voltage spread, in volts
 CELL_DRIFT_HIGH_THRESHOLD_V = 0.03
+
+
+def _estate_mode(code) -> int | None:
+    """Decode charge/discharge/standby mode out of 'Estate'.
+
+    See the matching helper + comment in sensor.py for how this was
+    derived: Estate = <device-specific base bits> + mode*0x1000, mode
+    0=standby, 1=discharging, 2=charging - confirmed across two
+    different physical units with different base bits (0x0C0, 0x3C0).
+    """
+    if not isinstance(code, int):
+        return None
+    return (code >> 12) & 0xF
 
 
 @dataclass
@@ -30,13 +44,13 @@ class FelicityBinarySensorDescription(BinarySensorEntityDescription):
 BINARY_SENSOR_DESCRIPTIONS: tuple[FelicityBinarySensorDescription, ...] = (
     FelicityBinarySensorDescription(
         key="fault_active",
-        name="Battery Fault Active",
+        name="Battery Fault",
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicityBinarySensorDescription(
         key="warning_active",
-        name="Battery Warning Active",
+        name="Battery Warning",
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -102,20 +116,22 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         data = self.coordinator.data or {}
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
-        sw_version = basic.get("version")
+        # Same logic as sensor.py's device_info - BCU version in the
+        # "Firmware" field, WiFi module FW as a fallback (also still
+        # available separately as its own sensor).
+        sw_version = _bcu_version(basic) or basic.get("version")
         host = self._entry.data.get(CONF_HOST)
         serial_display = f"{serial} ({host})" if host else serial
-
+        model = self._entry.data.get("model") or _fallback_model(basic)
 
         return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
-            "model": "FLA48200",
+            "model": model,
             "sw_version": sw_version,
             "serial_number": serial_display,
         }
-
 
     @property
     def is_on(self) -> bool | None:
@@ -145,9 +161,10 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return v != 0
 
         estate = data.get("Estate")
+        mode = _estate_mode(estate)
         if key == "charging":
-            # по коду состояния + по знаку тока
-            if estate == 9152:
+            # by state code + by current sign
+            if mode == 2 or estate == 9152:
                 return True
             i_raw = get_nested(("Batt", 1, 0))
             if i_raw is None:
@@ -155,7 +172,7 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return (i_raw / 10.0) > 0.05
 
         if key == "discharging":
-            if estate == 5056:
+            if mode == 1 or estate == 5056:
                 return True
             i_raw = get_nested(("Batt", 1, 0))
             if i_raw is None:
@@ -163,7 +180,7 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return (i_raw / 10.0) < -0.05
 
         if key == "standby":
-            if estate in (960, 320):
+            if mode == 0 or estate == 320:
                 return True
             i_raw = get_nested(("Batt", 1, 0))
             if i_raw is None:

@@ -16,6 +16,8 @@ from .const import (
 )
 _LOGGER = logging.getLogger(__name__)
 
+CONF_MODEL = "model"
+
 
 class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Felicity Battery local device."""
@@ -32,7 +34,7 @@ class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST]
             port = user_input[CONF_PORT]
 
-            # Не допускаем дубликаты для одного и того же host:port
+            # Don't allow duplicates for the same host:port
             for existing in self._async_current_entries():
                 if existing.data.get(CONF_HOST) == host and existing.data.get(CONF_PORT) == port:
                     return self.async_abort(reason="already_configured")
@@ -46,7 +48,14 @@ class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_NAME: user_input[CONF_NAME],
                     CONF_HOST: host,
                     CONF_PORT: port,
-},
+                    # The device's own local API never reports a
+                    # human-readable model string (only numeric Type/
+                    # SubType codes), so we can't detect e.g. "FLA48200"
+                    # or "LUX-X-96050HG01" automatically. Let the user
+                    # type theirs in; empty is fine, we fall back to a
+                    # generic label in device_info.
+                    CONF_MODEL: user_input.get(CONF_MODEL, "").strip(),
+                },
             )
 
         data_schema = vol.Schema(
@@ -54,6 +63,7 @@ class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME, default="Felicity"): str,
                 vol.Required(CONF_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
+                vol.Optional(CONF_MODEL, default=""): str,
             }
         )
 
@@ -61,4 +71,11 @@ class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=data_schema,
             errors=errors,
+            description_placeholders={
+                "model_hint": (
+                    "Optional: the model printed on your battery/label "
+                    "(e.g. LUX-X-96050HG01). The device itself doesn't "
+                    "report this, so it's only used for display."
+                )
+            },
         )
