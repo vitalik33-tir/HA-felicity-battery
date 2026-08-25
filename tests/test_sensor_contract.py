@@ -30,6 +30,7 @@ class LegacySensorContractTests(unittest.TestCase):
 
         self.assertEqual(descriptions["bms_m1_fw"], "Battery BMS M1 FW")
         self.assertEqual(descriptions["bms_m2_fw"], "Battery BMS M2 FW")
+        self.assertEqual(descriptions["state"], "Battery State")
         self.assertIn('return basic.get("M1SwVer")', source)
         self.assertIn('return basic.get("M2SwVer")', source)
 

@@ -2,6 +2,20 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+_BATTERY_STATES = {
+    320: "full",
+    960: "standby",
+    9152: "charging",
+    5056: "discharging",
+}
+
+
+def battery_state(code: Any) -> str | None:
+    """Decode a known Estate value while preserving unknown raw codes."""
+    if not isinstance(code, int):
+        return None
+    return _BATTERY_STATES.get(code, f"unknown({code})")
+
 
 def battery_pack_count(data: Mapping[str, Any]) -> int | None:
     """Return a conservative physical battery/module count."""

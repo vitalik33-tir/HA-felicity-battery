@@ -26,7 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .helpers import battery_pack_count
+from .helpers import battery_pack_count, battery_state
 
 DEFAULT_MODEL = "Felicity Battery (local API)"
 
@@ -535,6 +535,11 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
+        key="state",
+        name="Battery State",
+        icon="mdi:battery-heart",
+    ),
+    FelicitySensorDescription(
         key="fault",
         name="Battery Fault Code",
         icon="mdi:alert",
@@ -1017,6 +1022,9 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         if key == "max_discharge_current":
             raw = get_nested(("LVolCur", 1, 1))
             return round(raw / 10, 1) if raw is not None else None
+
+        if key == "state":
+            return battery_state(data.get("Estate"))
 
         if key == "fault":
             v = data.get("Bfault")

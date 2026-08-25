@@ -13,6 +13,7 @@ The integration:
   - SOC, voltage, current, power (plus separate charge/discharge current
     and power sensors)
   - Battery Direction (charging/discharging/idle)
+  - Battery State (full/standby/charging/discharging or the unknown raw code)
   - Max/Min Cell Temperature
   - Max/Min Cell Voltage and Cell Voltage Drift
   - Pack/Cell voltages for up to 16 cells - automatically labeled and

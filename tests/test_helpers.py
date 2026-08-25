@@ -40,5 +40,19 @@ class BatteryPackCountTests(unittest.TestCase):
         self.assertEqual(helpers.battery_pack_count(data), 1)
 
 
+class BatteryStateTests(unittest.TestCase):
+    def test_decodes_known_estate_values(self) -> None:
+        self.assertEqual(helpers.battery_state(320), "full")
+        self.assertEqual(helpers.battery_state(960), "standby")
+        self.assertEqual(helpers.battery_state(9152), "charging")
+        self.assertEqual(helpers.battery_state(5056), "discharging")
+
+    def test_preserves_unknown_estate_code(self) -> None:
+        self.assertEqual(helpers.battery_state(1234), "unknown(1234)")
+
+    def test_missing_estate_is_unavailable(self) -> None:
+        self.assertIsNone(helpers.battery_state(None))
+
+
 if __name__ == "__main__":
     unittest.main()
