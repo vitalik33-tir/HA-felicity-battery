@@ -23,7 +23,8 @@ The integration:
   - Charge/Discharge Voltage Limit, Max Charge/Discharge Current (runtime)
   - Working Mode (official Felicity enum, e.g. Standby/Battery Mode/Fault/...)
   - Battery Pack Count
-  - Battery BCU/SCU/BMU/LCD firmware versions, WiFi Module FW Version
+  - Battery BMS M1/M2 raw firmware values (legacy entity compatibility),
+    formatted BCU/SCU/BMU/LCD firmware versions, WiFi Module FW Version
   - WiFi Module Signal (RSSI)
   - Battery Type/SubType, Battery Serial, WiFi Module Serial
   - Fault/Warning codes and settings-derived sensors (Cell Over/Under

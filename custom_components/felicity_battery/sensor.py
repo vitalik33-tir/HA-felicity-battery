@@ -33,6 +33,8 @@ DEFAULT_MODEL = "Felicity Battery (local API)"
 _BASIC_INFO_KEYS = frozenset(
     {
         "fw_version",
+        "bms_m1_fw",
+        "bms_m2_fw",
         "bcu_version",
         "scu_version",
         "bmu_version",
@@ -557,11 +559,21 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         icon="mdi:chip",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # NOTE: standalone "Battery BMS M1/M2 FW" sensors (raw M1SwVer/M2SwVer)
-    # were removed - they were an exact subset of BCU/SCU below (e.g.
-    # M1SwVer is literally the first component of BCU: "203-05-86"),
-    # so they added no information, just clutter. bms_m1_fw/bms_m2_fw keys
-    # are intentionally no longer used anywhere.
+    # Keep the original raw M1/M2 sensors for entity-ID and automation
+    # compatibility. The formatted BCU/SCU sensors below add context but must
+    # not replace entities that older integration versions already created.
+    FelicitySensorDescription(
+        key="bms_m1_fw",
+        name="Battery BMS M1 FW",
+        icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="bms_m2_fw",
+        name="Battery BMS M2 FW",
+        icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
     FelicitySensorDescription(
         # Confirmed against the FSOLAR app's "Versionsdaten" screen:
         # BCU = M1SwVer + DSwVer (formatted "0X-YY"), e.g. 203-05-86.
@@ -1024,6 +1036,12 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         if key == "fw_version":
             return basic.get("version")
+
+        if key == "bms_m1_fw":
+            return basic.get("M1SwVer")
+
+        if key == "bms_m2_fw":
+            return basic.get("M2SwVer")
 
         if key == "bcu_version":
             return _bcu_version(basic)
