@@ -26,8 +26,32 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .helpers import battery_pack_count
 
 DEFAULT_MODEL = "Felicity Battery (local API)"
+
+_BASIC_INFO_KEYS = frozenset(
+    {
+        "fw_version",
+        "bcu_version",
+        "scu_version",
+        "bmu_version",
+        "lcd_version",
+        "battery_type",
+        "battery_subtype",
+    }
+)
+_DATE_INFO_KEYS = frozenset({"wifi_rssi"})
+_SETTINGS_KEYS = frozenset(
+    {
+        "cell_v_80",
+        "cell_v_20",
+        "cell_over_voltage",
+        "cell_under_voltage",
+        "charge_limit_setting",
+        "discharge_limit_setting",
+    }
+)
 
 
 def _fallback_model(basic: dict[str, Any]) -> str:
@@ -678,22 +702,25 @@ async def async_setup_entry(
 ) -> None:
     """Set up Felicity sensors based on a config entry.
 
-    Only add sensors that actually produced a value on the first refresh.
-    Some SENSOR_DESCRIPTIONS map to fields that don't exist (or are named
-    differently) on every Felicity battery model/firmware; leaving those
-    entities permanently stuck on 'unknown' is just noise, so we skip them
-    instead. (coordinator.async_config_entry_first_refresh() has already
-    run in __init__.py by the time this is called, so coordinator.data is
-    populated.)
+    Model-specific sensors are filtered from the first runtime payload. Sensors
+    backed by best-effort basic/settings/date commands are retained when their
+    whole source payload is missing, so a transient startup failure can recover
+    on a later coordinator refresh without reloading the integration.
     """
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
 
     entities: list[FelicitySensor] = []
     skipped: list[str] = []
+    coordinator_data = coordinator.data or {}
     for desc in SENSOR_DESCRIPTIONS:
         entity = FelicitySensor(coordinator, entry, desc)
-        if entity.native_value is not None:
+        source_missing = (
+            (desc.key in _BASIC_INFO_KEYS and "_basic" not in coordinator_data)
+            or (desc.key in _DATE_INFO_KEYS and "_date" not in coordinator_data)
+            or (desc.key in _SETTINGS_KEYS and "_settings" not in coordinator_data)
+        )
+        if entity.native_value is not None or source_missing:
             entities.append(entity)
         else:
             skipped.append(desc.key)
@@ -1036,24 +1063,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         # --- Settings / thresholds ---
         if key == "ttl_pack":
-            # The device's own 'ttlPack' field (in _settings) is transport
-            # metadata (how many concatenated JSON objects make up the
-            # "get dev set infor" reply), NOT the physical pack count.
-            # BMSpara[0][0] reports the actual pack/module count directly
-            # and matches this device's real module count exactly - use
-            # that instead. Falls back to counting populated BatcelList[0]
-            # slots (which independently gives the same number) if
-            # BMSpara is ever missing.
-            official = get_nested(("BMSpara", 0, 0))
-            if isinstance(official, (int, float)) and official > 0:
-                return int(official)
-            cells = get_nested(("BatcelList", 0))
-            if not isinstance(cells, list):
-                return None
-            count = sum(
-                1 for v in cells if isinstance(v, (int, float)) and v not in (0, 65535)
-            )
-            return count or None
+            return battery_pack_count(data)
 
         if key == "cell_v_80":
             raw = settings.get("wCVP80")

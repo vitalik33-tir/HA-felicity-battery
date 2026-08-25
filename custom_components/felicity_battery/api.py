@@ -24,6 +24,65 @@ IDLE_TIMEOUT = 0.4
 READ_RETRIES = 2
 READ_RETRY_BACKOFF = 0.5
 
+_BARE_NONE_RE = re.compile(r'(?<!["\w])None(?!["\w])')
+
+
+def normalize_payload(text: str) -> str:
+    """Normalize Felicity's Python-like payload without changing strings."""
+    return _BARE_NONE_RE.sub("null", text.replace("'", '"')).strip()
+
+
+def extract_json_objects(text: str) -> list[str]:
+    """Extract complete top-level JSON objects from a device response."""
+    objects: list[str] = []
+    depth = 0
+    start: int | None = None
+    in_string = False
+    escaped = False
+
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}" and depth:
+            depth -= 1
+            if depth == 0 and start is not None:
+                objects.append(text[start : index + 1])
+                start = None
+
+    return objects
+
+
+def parse_json_objects(text: str) -> list[dict[str, Any]]:
+    """Normalize and decode all complete JSON objects in a response."""
+    normalized = normalize_payload(text)
+    objects = extract_json_objects(normalized)
+    if not objects and normalized.startswith("{") and normalized.endswith("}"):
+        objects = [normalized]
+
+    parsed: list[dict[str, Any]] = []
+    for obj in objects:
+        try:
+            value = json.loads(obj)
+        except json.JSONDecodeError as err:
+            _LOGGER.debug("Skip invalid JSON object: %s", err)
+            continue
+        if isinstance(value, dict):
+            parsed.append(value)
+    return parsed
+
 
 class FelicityApiError(Exception):
     """Error while communicating with Felicity battery."""
@@ -55,9 +114,10 @@ class FelicityClient:
             basic_raw = await self._async_read_raw_with_retry(
                 b"wifilocalMonitor:get dev basice infor"
             )
-            basic_text = basic_raw.replace("'", '"').strip()
-            basic = json.loads(basic_text)
-            data["_basic"] = basic
+            basic_objects = parse_json_objects(basic_raw)
+            if not basic_objects:
+                raise FelicityApiError("No valid JSON in basic info payload")
+            data["_basic"] = basic_objects[0]
         except Exception as err:
             _LOGGER.debug("Failed to read basic info: %s", err)
 
@@ -66,48 +126,21 @@ class FelicityClient:
             set_raw = await self._async_read_raw_with_retry(
                 b"wifilocalMonitor:get dev set infor"
             )
-            set_text = set_raw.replace("'", '"').strip()
             merged: Dict[str, Any] = {}
-
-            # Parse several consecutive JSON objects:
-            depth = 0
-            start = None
-            json_objects: list[str] = []
-
-            for i, ch in enumerate(set_text):
-                if ch == "{":
-                    if depth == 0:
-                        start = i
-                    depth += 1
-                elif ch == "}":
-                    if depth > 0:
-                        depth -= 1
-                        if depth == 0 and start is not None:
-                            json_objects.append(set_text[start : i + 1])
-                            start = None
-
-            # Fallback to a simple regex, just in case
-            if not json_objects:
-                json_objects = re.findall(r"\{.*?\}", set_text)
-
-            for obj in json_objects:
-                try:
-                    part = json.loads(obj)
-                    merged.update(part)
-                except Exception as e:
-                    _LOGGER.debug("Skip invalid part in settings: %s", e)
-                    continue
+            settings_objects = parse_json_objects(set_raw)
+            for part in settings_objects:
+                merged.update(part)
 
             if merged:
                 data["_settings"] = merged
                 _LOGGER.debug(
                     "Merged Felicity settings (%d keys from %d objects): %s",
                     len(merged),
-                    len(json_objects),
+                    len(settings_objects),
                     merged,
                 )
             else:
-                _LOGGER.debug("No valid JSON found in settings payload: %r", set_text)
+                _LOGGER.debug("No valid JSON found in settings payload: %r", set_raw)
 
         except Exception as err:
             _LOGGER.debug("Failed to read settings info: %s", err)
@@ -122,8 +155,10 @@ class FelicityClient:
             date_raw = await self._async_read_raw_with_retry(
                 b"wifilocalMonitor:get Date"
             )
-            date_text = date_raw.replace("'", '"').strip()
-            data["_date"] = json.loads(date_text)
+            date_objects = parse_json_objects(date_raw)
+            if not date_objects:
+                raise FelicityApiError("No valid JSON in date/status payload")
+            data["_date"] = date_objects[0]
         except Exception as err:
             _LOGGER.debug("Failed to read date/status info: %s", err)
 
@@ -228,12 +263,14 @@ class FelicityClient:
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
         """Parse Felicity 'dev real infor' payload into dict we use."""
-        norm = text.replace("'", '"')
+        norm = normalize_payload(text)
         last_brace = norm.rfind("}")
         if last_brace != -1:
             norm = norm[: last_brace + 1]
 
         result: Dict[str, Any] = {}
+        for part in parse_json_objects(norm):
+            result.update(part)
 
         def _find_str(key: str) -> str | None:
             m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', norm)
@@ -243,20 +280,22 @@ class FelicityClient:
             m = re.search(rf'"{key}"\s*:\s*([-0-9]+)', norm)
             return int(m.group(1)) if m else None
 
-        # Simple fields
-        result["CommVer"] = _find_int("CommVer")
-        result["wifiSN"] = _find_str("wifiSN")
-        result["DevSN"] = _find_str("DevSN")
-        result["Estate"] = _find_int("Estate")
-        result["Bfault"] = _find_int("Bfault")
-        result["Bwarn"] = _find_int("Bwarn") or 0
+        # Simple fields. Regexes are fallbacks for partially malformed JSON.
+        for key in ("CommVer", "Estate", "Bfault", "Bwarn", "workM"):
+            if key not in result:
+                result[key] = _find_int(key)
+        for key in ("wifiSN", "DevSN"):
+            if key not in result:
+                result[key] = _find_str(key)
+        if result.get("Bwarn") is None:
+            result["Bwarn"] = 0
 
         # Batt: [[53300],[1],[null]]
         m = re.search(
             r'"Batt"\s*:\s*\[\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*(null|None|[-0-9]+)?\s*\]\s*\]',
             norm,
         )
-        if m:
+        if m and "Batt" not in result:
             v = int(m.group(1))
             i = int(m.group(2))
             third_raw = m.group(3)
@@ -270,7 +309,7 @@ class FelicityClient:
             r'"Batsoc"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*\]',
             norm,
         )
-        if m:
+        if m and "Batsoc" not in result:
             soc = int(m.group(1))
             scale = int(m.group(2))
             cap = int(m.group(3))
@@ -281,7 +320,7 @@ class FelicityClient:
             r'"BMaxMin"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*\]',
             norm,
         )
-        if m:
+        if m and "BMaxMin" not in result:
             max_v = int(m.group(1))
             min_v = int(m.group(2))
             max_i = int(m.group(3))
@@ -293,7 +332,7 @@ class FelicityClient:
             r'"LVolCur"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*\]',
             norm,
         )
-        if m:
+        if m and "LVolCur" not in result:
             v1 = int(m.group(1))
             v2 = int(m.group(2))
             c1 = int(m.group(3))
@@ -325,40 +364,51 @@ class FelicityClient:
                 t1 = int(m.group(1))
                 t2 = int(m.group(2))
                 btemp = [[t1, t2]]
-        if btemp is not None:
+        if btemp is not None and "BTemp" not in result:
             result["BTemp"] = btemp
 
-        # BatcelList: [0] = pack/string voltages (~53V, confirmed against
-        # the FSOLAR app's "Batteriespannung" table), [1] = real individual
-        # cell voltages (~3.3V, confirmed against "Vol. der Zelle"). The
-        # second sub-array used to be dropped entirely - now captured too.
-        m = re.search(
-            r'"BatcelList"\s*:\s*\[\s*\[([0-9,\s-]+)\]\s*,\s*\[([0-9,\s-]+)\]\s*\]',
-            norm,
-        )
-        if m:
+        def _find_int_matrix(key: str) -> list[list[int]] | None:
+            match = re.search(
+                rf'"{re.escape(key)}"\s*:\s*(\[\s*\[[0-9,\s\[\]-]*\]\s*\])',
+                norm,
+            )
+            if not match:
+                return None
             try:
-                cells0 = [int(x) for x in m.group(1).split(",") if x.strip() != ""]
-                cells1 = [int(x) for x in m.group(2).split(",") if x.strip() != ""]
-                result["BatcelList"] = [cells0, cells1]
-            except Exception:
-                _LOGGER.debug("Failed to parse BatcelList from %r", m.group(0))
-        else:
-            # Fallback: only the first sub-array present/parseable.
-            m = re.search(r'"BatcelList"\s*:\s*\[\s*\[([0-9,\s-]+)\]', norm)
-            if m:
-                cells_str = m.group(1)
-                try:
-                    cells0 = [int(x) for x in cells_str.split(",") if x.strip() != ""]
-                    result["BatcelList"] = [cells0]
-                except Exception:
-                    _LOGGER.debug("Failed to parse BatcelList from %r", cells_str)
+                value = json.loads(match.group(1))
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(value, list) or not all(
+                isinstance(row, list) for row in value
+            ):
+                return None
+            if not all(isinstance(item, int) for row in value for item in row):
+                return None
+            return value
+
+        # Keep every array a device reports. Sensor interpretation remains
+        # conservative: row 0 is packs and row 1 is cells only on 2+ row units.
+        for key in ("BatcelList", "BMSpara"):
+            if key not in result:
+                matrix = _find_int_matrix(key)
+                if matrix is not None:
+                    result[key] = matrix
 
         _LOGGER.debug("Parsed Felicity real data dict: %s", result)
 
         if "Batsoc" not in result and "Batt" not in result:
             raise FelicityApiError(
                 f"Unable to parse essential fields from payload: {text}"
+            )
+
+        try:
+            voltage_raw = result["Batt"][0][0]
+        except (KeyError, IndexError, TypeError):
+            voltage_raw = None
+        if isinstance(voltage_raw, (int, float)) and voltage_raw <= 0:
+            raise FelicityApiError(
+                "Invalid zero battery voltage in runtime payload; "
+                "keeping the previous Home Assistant state"
             )
 
         return result

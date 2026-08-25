@@ -32,9 +32,10 @@ The integration:
   - binary sensors: Battery Fault, Battery Warning, Battery Charging,
     Battery Discharging, Battery Standby, Cell Voltage Drift High
 
-Only sensors that actually return data for your specific battery/firmware
-are created - fields your device doesn't report are skipped automatically
-instead of showing up as permanently "unknown".
+Model-specific sensors are created only when your battery/firmware reports
+their data. Sensors backed by the supplementary basic/settings/date commands
+are kept when one of those commands fails transiently during startup, allowing
+them to recover automatically on a later poll instead of requiring a reload.
 
 Tested with **FLA48200** and **LUX-X-96050HG01** batteries, communicating
 with the Wi-Fi module (e.g. `IOTH2407`) on TCP port `53970`.

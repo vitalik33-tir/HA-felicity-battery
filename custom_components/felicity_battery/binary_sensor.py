@@ -57,17 +57,15 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[FelicityBinarySensorDescription, ...] = (
     FelicityBinarySensorDescription(
         key="charging",
         name="Battery Charging",
-        device_class=BinarySensorDeviceClass.POWER,
+        device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
     ),
     FelicityBinarySensorDescription(
         key="discharging",
         name="Battery Discharging",
-        device_class=BinarySensorDeviceClass.POWER,
     ),
     FelicityBinarySensorDescription(
         key="standby",
         name="Battery Standby",
-        device_class=BinarySensorDeviceClass.POWER,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicityBinarySensorDescription(
