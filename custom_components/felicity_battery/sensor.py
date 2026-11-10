@@ -26,7 +26,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .helpers import battery_pack_count, battery_state
+from .helpers import (
+    batcel_cell_row,
+    batcel_has_pack_row,
+    battery_pack_count,
+    battery_state,
+)
 
 DEFAULT_MODEL = "Felicity Battery (local API)"
 
@@ -808,8 +813,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
                 n = int(key.split("_")[1])
             except (ValueError, IndexError):
                 n = "?"
-            cells_list = (self.coordinator.data or {}).get("BatcelList")
-            if isinstance(cells_list, list) and len(cells_list) >= 2:
+            if batcel_has_pack_row(self.coordinator.data or {}):
                 return f"Pack {n} Voltage"
             return f"Cell {n} Voltage"
         return self.entity_description.name
@@ -968,14 +972,16 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         #
         # Rather than hardcoding one interpretation and risking silently
         # wrong values on whichever device shape wasn't tested, this code
-        # branches on how many BatcelList arrays the device actually sends
-        # at runtime:
-        #   - 1 array  -> "cell_N_v" behaves exactly like the original,
+        # branches on what row 0 actually contains at runtime (see
+        # helpers.batcel_has_pack_row - the row count alone is not enough,
+        # some single-module batteries send a second row of 65535
+        # placeholders, issue #4):
+        #   - cells    -> "cell_N_v" behaves exactly like the original,
         #     unpatched integration (row 0, /1000, "Cell N Voltage"), so a
         #     single-module-style upgrade is a complete no-op for these
         #     entities: same key, same scale, same name, same history.
         #     "cell_real_N_v" stays unpopulated (filtered out at setup).
-        #   - 2+ arrays -> "cell_N_v" becomes "Pack N Voltage" (/100, row
+        #   - packs    -> "cell_N_v" becomes "Pack N Voltage" (/100, row
         #     0) as on this integration's own test unit, and the new
         #     "cell_real_N_v" entities (row 1, /1000) provide the true
         #     per-cell readings.
@@ -994,16 +1000,15 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             # pinning them at a permanent, misleading 0 V.
             if raw is None or raw in (0, 65535):
                 return None
-            if len(cells_list) >= 2:
+            if batcel_has_pack_row(data):
                 return round(raw / 100.0, 2)
             return round(raw / 1000.0, 3)
 
         if key.startswith("cell_real_") and key.endswith("_v"):
-            cells_list = get_nested(("BatcelList",))
-            # Only meaningful on multi-array devices - see above. On a
-            # single-array device this stays unpopulated on purpose so it
-            # doesn't show up as a confusing duplicate of cell_N_v.
-            if not isinstance(cells_list, list) or len(cells_list) < 2:
+            # Only meaningful when row 0 holds pack voltages - see above.
+            # Otherwise this stays unpopulated on purpose so it doesn't
+            # show up as a confusing duplicate of cell_N_v.
+            if not batcel_has_pack_row(data):
                 return None
             try:
                 idx = int(key.split("_")[2]) - 1  # 0..15
@@ -1124,19 +1129,13 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         key = self.entity_description.key
 
         # Per-cell aggregation for the cell_drift sensor
-        # NOTE: uses BatcelList[1] (the real per-cell array, ~3.3V each,
-        # confirmed against the FSOLAR app) - it previously read
-        # BatcelList[0], which is actually the pack/string voltages
-        # (~53V) and produced meaningless "cell" attributes here.
+        # NOTE: uses whichever BatcelList row holds the real cells (~3.3V
+        # each): row 1 on modular packs, where row 0 is the pack/string
+        # voltages (~53V), row 0 otherwise - see batcel_has_pack_row().
         if key == "cell_drift":
             attrs: dict[str, Any] = {}
-            cells_list = data.get("BatcelList")
-            if (
-                isinstance(cells_list, list)
-                and len(cells_list) > 1
-                and isinstance(cells_list[1], list)
-            ):
-                raw_cells = cells_list[1]
+            raw_cells = batcel_cell_row(data)
+            if raw_cells is not None:
                 cells_v: list[float] = []
                 for c in raw_cells:
                     if isinstance(c, int) and c not in (0, 65535):

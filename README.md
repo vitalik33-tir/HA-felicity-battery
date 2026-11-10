@@ -18,8 +18,9 @@ The integration:
   - Max/Min Cell Voltage and Cell Voltage Drift
   - Pack/Cell voltages for up to 16 cells - automatically labeled and
     scaled as either "Pack N Voltage" or "Cell N Voltage" depending on
-    what the connected battery actually reports (single- vs. multi-array
-    packs)
+    what the connected battery actually reports (single-module batteries
+    report cell voltages, modular packs report one voltage per pack plus
+    the individual cells)
   - Battery SOH, Battery Capacity (Ah)
   - Charge/Discharge Voltage Limit, Max Charge/Discharge Current (runtime)
   - Working Mode (official Felicity enum, e.g. Standby/Battery Mode/Fault/...)
