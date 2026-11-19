@@ -49,6 +49,24 @@ The integration:
     has only been observed in mode 832 so far, and both current fields
     disagree at low currents. The existing sensors are unaffected.
 
+### P1 shadow decoder (experimental branch)
+
+The read-only profiles.py module adds an FLA48200-P profile. It never replaces
+the legacy decoder or sends extra TCP requests. The existing hidden BMS State
+Register (raw) entity gets a p1_shadow attribute: profile eligibility,
+comparison count, mismatch keys and warnings, and a cutover gate.
+
+The profile applies only to the manually configured FLA48200-P model with the
+verified Type 112/SubType 7250, one physical pack, 16 valid individual cells,
+matching extrema and consistent pack voltage. Other layouts fail closed to
+the legacy decoder. In this device Batt current -1 means -0.1 A, whereas
+BattList can use -1 as a no-channel sentinel. Their meanings are not merged.
+
+Cutover stays disabled until charge and discharge states are verified on real
+equipment. To run tests: python3 -m pytest -q. The committed sample fixture
+is stripped of serial numbers and network metadata. To roll back P1, restore
+commit 78a53ca of the feature branch and restart Home Assistant.
+
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands
 are kept when one of those commands fails transiently during startup, allowing
@@ -70,6 +88,8 @@ with the Wi-Fi module (e.g. `IOTH2407`) on TCP port `53970`.
          const.py
          api.py
          config_flow.py
+         helpers.py
+         profiles.py
          sensor.py
          binary_sensor.py
    ```

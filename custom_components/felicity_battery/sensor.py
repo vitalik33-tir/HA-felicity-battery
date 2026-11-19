@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .profiles import decode_fla48200p, compare_with_legacy
 from .helpers import (
     battery_pack_count,
     battery_state,
@@ -806,6 +807,10 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         self.entity_description = description
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        # Only the existing hidden raw-register entity evaluates P1 in shadow.
+        # These detached legacy readers are never added to HA or subscribed to
+        # coordinator updates, and therefore cannot change any entity state.
+        self._p1_legacy_readers: dict[str, FelicitySensor] | None = None
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -1184,6 +1189,33 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         if key == "bstate_raw":
             snapshot = bms_state_snapshot(data)
             snapshot.pop("bstate_raw", None)
+
+            profile = decode_fla48200p(
+                data,
+                configured_model=(
+                    self._entry.options.get("rated_model")
+                    or self._entry.data.get("model")
+                ),
+            )
+            if profile.valid:
+                if self._p1_legacy_readers is None:
+                    descriptions = {desc.key: desc for desc in SENSOR_DESCRIPTIONS}
+                    self._p1_legacy_readers = {
+                        field: FelicitySensor(
+                            self.coordinator, self._entry, descriptions[field]
+                        )
+                        for field in profile.values
+                        if field in descriptions and field != "bstate_raw"
+                    }
+                # Compare to the actual legacy native_value implementation,
+                # not to a duplicate copy of the old parsing formulas.
+                report = compare_with_legacy(
+                    profile,
+                    lambda field: self._p1_legacy_readers[field].native_value,
+                )
+            else:
+                report = compare_with_legacy(profile, lambda _: None)
+            snapshot["p1_shadow"] = report
             return snapshot
 
         if key == "state":
