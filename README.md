@@ -3,6 +3,8 @@
 Custom integration for **Felicity FLA48200** (and similar) batteries which expose
 a local TCP API on port `53970`.
 
+Model-specific reference for this experimental branch: [P3.2 local TCP protocol](docs/P3_2_LOCAL_TCP_PROTOCOL.md) and [P3.2 model evidence matrix](docs/P3_2_MODEL_EVIDENCE.md). The protocol notes explicitly distinguish real FLA48200-P measurements from other models' unverified assumptions.
+
 The integration:
 
 - connects to `IP:PORT` of the Felicity Wi-Fi module,
