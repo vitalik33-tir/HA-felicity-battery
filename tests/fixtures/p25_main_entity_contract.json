@@ -1,0 +1,702 @@
+{
+  "binary_sensor": {
+    "cell_drift_high": {
+      "device_class": "BinarySensorDeviceClass.PROBLEM",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "key": "'cell_drift_high'",
+      "name": "'Cell Voltage Drift High'"
+    },
+    "charging": {
+      "device_class": "BinarySensorDeviceClass.BATTERY_CHARGING",
+      "key": "'charging'",
+      "name": "'Battery Charging'"
+    },
+    "discharging": {
+      "key": "'discharging'",
+      "name": "'Battery Discharging'"
+    },
+    "fault_active": {
+      "device_class": "BinarySensorDeviceClass.PROBLEM",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "key": "'fault_active'",
+      "name": "'Battery Fault'"
+    },
+    "standby": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "key": "'standby'",
+      "name": "'Battery Standby'"
+    },
+    "warning_active": {
+      "device_class": "BinarySensorDeviceClass.PROBLEM",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "key": "'warning_active'",
+      "name": "'Battery Warning'"
+    }
+  },
+  "main_commit": "a547418d924665945f0f924908f21407263f541e",
+  "sensor": {
+    "battery_subtype": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:identifier'",
+      "key": "'battery_subtype'",
+      "name": "'Battery SubType'"
+    },
+    "battery_type": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:identifier'",
+      "key": "'battery_type'",
+      "name": "'Battery Type'"
+    },
+    "bcu_version": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'bcu_version'",
+      "name": "'Battery BCU Version'"
+    },
+    "bms_m1_fw": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'bms_m1_fw'",
+      "name": "'Battery BMS M1 FW'"
+    },
+    "bms_m2_fw": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'bms_m2_fw'",
+      "name": "'Battery BMS M2 FW'"
+    },
+    "bmu_version": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'bmu_version'",
+      "name": "'Battery BMU Version'"
+    },
+    "capacity_ah": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery-charging-100'",
+      "key": "'capacity_ah'",
+      "name": "'Battery Capacity'",
+      "native_unit_of_measurement": "'Ah'",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "cell_10_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_10_v'",
+      "name": "'Pack 10 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_11_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_11_v'",
+      "name": "'Pack 11 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_12_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_12_v'",
+      "name": "'Pack 12 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_13_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_13_v'",
+      "name": "'Pack 13 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_14_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_14_v'",
+      "name": "'Pack 14 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_15_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_15_v'",
+      "name": "'Pack 15 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_16_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_16_v'",
+      "name": "'Pack 16 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_1_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_1_v'",
+      "name": "'Pack 1 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_2_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_2_v'",
+      "name": "'Pack 2 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_3_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_3_v'",
+      "name": "'Pack 3 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_4_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_4_v'",
+      "name": "'Pack 4 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_5_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_5_v'",
+      "name": "'Pack 5 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_6_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_6_v'",
+      "name": "'Pack 6 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_7_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_7_v'",
+      "name": "'Pack 7 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_8_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_8_v'",
+      "name": "'Pack 8 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_9_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_9_v'",
+      "name": "'Pack 9 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "cell_drift": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chart-bell-curve'",
+      "key": "'cell_drift'",
+      "name": "'Cell Voltage Drift'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_over_voltage": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:flash-alert'",
+      "key": "'cell_over_voltage'",
+      "name": "'Cell Over Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_10_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_10_v'",
+      "name": "'Cell 10 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_11_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_11_v'",
+      "name": "'Cell 11 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_12_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_12_v'",
+      "name": "'Cell 12 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_13_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_13_v'",
+      "name": "'Cell 13 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_14_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_14_v'",
+      "name": "'Cell 14 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_15_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_15_v'",
+      "name": "'Cell 15 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_16_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_16_v'",
+      "name": "'Cell 16 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_1_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_1_v'",
+      "name": "'Cell 1 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_2_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_2_v'",
+      "name": "'Cell 2 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_3_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_3_v'",
+      "name": "'Cell 3 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_4_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_4_v'",
+      "name": "'Cell 4 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_5_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_5_v'",
+      "name": "'Cell 5 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_6_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_6_v'",
+      "name": "'Cell 6 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_7_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_7_v'",
+      "name": "'Cell 7 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_8_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_8_v'",
+      "name": "'Cell 8 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_real_9_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery'",
+      "key": "'cell_real_9_v'",
+      "name": "'Cell 9 Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_under_voltage": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:flash-alert-outline'",
+      "key": "'cell_under_voltage'",
+      "name": "'Cell Under Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_v_20": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery-20'",
+      "key": "'cell_v_20'",
+      "name": "'Cell Voltage @20%'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "cell_v_80": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery-80'",
+      "key": "'cell_v_80'",
+      "name": "'Cell Voltage @80%'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "charge_current": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "icon": "'mdi:current-dc'",
+      "key": "'charge_current'",
+      "name": "'Battery Charge Current'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "charge_limit_setting": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:current-ac'",
+      "key": "'charge_limit_setting'",
+      "name": "'Charge Current Limit (BMS protection)'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "charge_power": {
+      "device_class": "SensorDeviceClass.POWER",
+      "icon": "'mdi:flash'",
+      "key": "'charge_power'",
+      "name": "'Battery Charge Power'",
+      "native_unit_of_measurement": "UnitOfPower.WATT",
+      "state_class": "SensorStateClass.MEASUREMENT"
+    },
+    "charge_voltage_limit": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:flash'",
+      "key": "'charge_voltage_limit'",
+      "name": "'Charge Voltage Limit'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "current": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "icon": "'mdi:current-dc'",
+      "key": "'current'",
+      "name": "'Battery Current'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "direction": {
+      "icon": "'mdi:swap-vertical'",
+      "key": "'direction'",
+      "name": "'Battery Direction'"
+    },
+    "discharge_current": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "icon": "'mdi:current-dc'",
+      "key": "'discharge_current'",
+      "name": "'Battery Discharge Current'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "discharge_limit_setting": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:current-ac'",
+      "key": "'discharge_limit_setting'",
+      "name": "'Discharge Current Limit (BMS protection)'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "discharge_power": {
+      "device_class": "SensorDeviceClass.POWER",
+      "icon": "'mdi:flash'",
+      "key": "'discharge_power'",
+      "name": "'Battery Discharge Power'",
+      "native_unit_of_measurement": "UnitOfPower.WATT",
+      "state_class": "SensorStateClass.MEASUREMENT"
+    },
+    "discharge_voltage_limit": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:flash'",
+      "key": "'discharge_voltage_limit'",
+      "name": "'Discharge Voltage Limit'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "fault": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:alert'",
+      "key": "'fault'",
+      "name": "'Battery Fault Code'"
+    },
+    "fw_version": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'fw_version'",
+      "name": "'WiFi Module FW Version'"
+    },
+    "lcd_version": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'lcd_version'",
+      "name": "'Battery LCD Version'"
+    },
+    "max_cell_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery-high'",
+      "key": "'max_cell_v'",
+      "name": "'Max Cell Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "max_charge_current": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:current-ac'",
+      "key": "'max_charge_current'",
+      "name": "'Max Charge Current (runtime)'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "max_discharge_current": {
+      "device_class": "SensorDeviceClass.CURRENT",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:current-ac'",
+      "key": "'max_discharge_current'",
+      "name": "'Max Discharge Current (runtime)'",
+      "native_unit_of_measurement": "UnitOfElectricCurrent.AMPERE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "min_cell_v": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:battery-low'",
+      "key": "'min_cell_v'",
+      "name": "'Min Cell Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "3"
+    },
+    "power": {
+      "device_class": "SensorDeviceClass.POWER",
+      "icon": "'mdi:flash'",
+      "key": "'power'",
+      "name": "'Battery Power'",
+      "native_unit_of_measurement": "UnitOfPower.WATT",
+      "state_class": "SensorStateClass.MEASUREMENT"
+    },
+    "scu_version": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:chip'",
+      "key": "'scu_version'",
+      "name": "'Battery SCU Version'"
+    },
+    "serial": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:identifier'",
+      "key": "'serial'",
+      "name": "'Battery Serial'"
+    },
+    "soc": {
+      "device_class": "SensorDeviceClass.BATTERY",
+      "icon": "'mdi:battery'",
+      "key": "'soc'",
+      "name": "'Battery SOC'",
+      "native_unit_of_measurement": "PERCENTAGE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "soh": {
+      "icon": "'mdi:heart-pulse'",
+      "key": "'soh'",
+      "name": "'Battery SOH'",
+      "native_unit_of_measurement": "PERCENTAGE",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "state": {
+      "icon": "'mdi:battery-heart'",
+      "key": "'state'",
+      "name": "'Battery State'"
+    },
+    "temp1": {
+      "device_class": "SensorDeviceClass.TEMPERATURE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:thermometer-high'",
+      "key": "'temp1'",
+      "name": "'Max Cell Temperature'",
+      "native_unit_of_measurement": "UnitOfTemperature.CELSIUS",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "temp2": {
+      "device_class": "SensorDeviceClass.TEMPERATURE",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:thermometer-low'",
+      "key": "'temp2'",
+      "name": "'Min Cell Temperature'",
+      "native_unit_of_measurement": "UnitOfTemperature.CELSIUS",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "1"
+    },
+    "ttl_pack": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:counter'",
+      "key": "'ttl_pack'",
+      "name": "'Battery Pack Count'"
+    },
+    "voltage": {
+      "device_class": "SensorDeviceClass.VOLTAGE",
+      "icon": "'mdi:current-dc'",
+      "key": "'voltage'",
+      "name": "'Battery Voltage'",
+      "native_unit_of_measurement": "UnitOfElectricPotential.VOLT",
+      "state_class": "SensorStateClass.MEASUREMENT",
+      "suggested_display_precision": "2"
+    },
+    "warning": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:alert-circle'",
+      "key": "'warning'",
+      "name": "'Battery Warning Code'"
+    },
+    "wifi_rssi": {
+      "device_class": "SensorDeviceClass.SIGNAL_STRENGTH",
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "key": "'wifi_rssi'",
+      "name": "'WiFi Module Signal'",
+      "native_unit_of_measurement": "SIGNAL_STRENGTH_DECIBELS_MILLIWATT",
+      "state_class": "SensorStateClass.MEASUREMENT"
+    },
+    "wifi_serial": {
+      "entity_category": "EntityCategory.DIAGNOSTIC",
+      "icon": "'mdi:wifi'",
+      "key": "'wifi_serial'",
+      "name": "'WiFi Module Serial'"
+    },
+    "working_mode": {
+      "icon": "'mdi:state-machine'",
+      "key": "'working_mode'",
+      "name": "'Working Mode'"
+    }
+  }
+}
