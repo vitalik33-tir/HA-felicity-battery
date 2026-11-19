@@ -107,6 +107,24 @@ class TestBatteryP0(unittest.TestCase):
         )
         self.assertEqual(payload.get("Bwarn"), 0)
 
+    def test_sixteen_primary_cell_entities_show_millivolt_precision(self):
+        import ast
+        source = (ROOT / "custom_components/felicity_battery/sensor.py").read_text()
+        cells = {}
+        for node in ast.walk(ast.parse(source)):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Name) or node.func.id != "FelicitySensorDescription":
+                continue
+            options = {kw.arg: kw.value for kw in node.keywords}
+            key_node = options.get("key")
+            if not isinstance(key_node, ast.Constant):
+                continue
+            if key_node.value in {f"cell_{i}_v" for i in range(1, 17)}:
+                precision = options.get("suggested_display_precision")
+                cells[key_node.value] = precision.value if isinstance(precision, ast.Constant) else None
+        self.assertEqual(cells, {f"cell_{i}_v": 3 for i in range(1, 17)})
+
     def test_existing_entity_keys_not_dropped(self):
         import ast
         import subprocess

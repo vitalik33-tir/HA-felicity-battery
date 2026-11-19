@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 _BATTERY_STATES = {
     320: "full",
+    832: "standby (832; flags 0x0340)",  # Mode nibble=0; lower flags unclassified.
     960: "standby",
     9152: "charging",
     5056: "discharging",

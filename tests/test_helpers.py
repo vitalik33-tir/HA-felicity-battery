@@ -50,6 +50,9 @@ class BatteryStateTests(unittest.TestCase):
     def test_preserves_unknown_estate_code(self) -> None:
         self.assertEqual(helpers.battery_state(1234), "unknown(1234)")
 
+    def test_estate_832_is_standby_with_unclassified_flags(self) -> None:
+        self.assertEqual(helpers.battery_state(832), "standby (832; flags 0x0340)")
+
     def test_missing_estate_is_unavailable(self) -> None:
         self.assertIsNone(helpers.battery_state(None))
 
