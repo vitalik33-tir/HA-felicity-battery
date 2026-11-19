@@ -77,6 +77,22 @@ class FelicityPayloadTests(unittest.TestCase):
         self.assertEqual(data["BMSpara"], [[2]])
         self.assertEqual(data["workM"], 4)
 
+    def test_transport_retry_recovers_after_transient_failure(self) -> None:
+        self.client._async_read_raw = AsyncMock(
+            side_effect=[
+                api.FelicityApiError("simulated interrupted TCP read"),
+                '{"Batt": [[57500], [-1], [null]], "Batsoc": [[10000,1000,250000]]}',
+            ]
+        )
+        raw = asyncio.run(
+            self.client._async_read_raw_with_retry(
+                b"wifilocalMonitor:get dev real infor", retries=1, backoff=0
+            )
+        )
+        self.assertIn('"Batt"', raw)
+        self.assertEqual(self.client._async_read_raw.await_count, 2)
+        self.assertEqual(self.client._parse_real_payload(raw)["Batt"][1][0], -1)
+
     def test_best_effort_payloads_recover_none_and_concatenated_json(self) -> None:
         self.client._async_read_raw_with_retry = AsyncMock(
             side_effect=[
