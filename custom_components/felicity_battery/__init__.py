@@ -18,7 +18,7 @@ from .api import (
     FelicityClient,
     async_get_data_bounded,
 )
-from .validation import validate_runtime
+from .validation import has_hardware_alarm, sanitize_runtime, validate_runtime
 from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -38,21 +38,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     host: str = entry.data["host"]
     port: int = entry.data["port"]
 
+    model = entry.options.get("rated_model") or entry.data.get("model")
+
     def _validate_runtime(data: dict) -> None:
-        result = validate_runtime(
-            data,
-            configured_model=(
-                entry.options.get("rated_model") or entry.data.get("model")
-            ),
-        )
-        if not result.valid:
+        # Keep hardware alarm registers intact while individually masking
+        # corrupted physical channels. The original parsed frame is detached,
+        # so no data is modified during parsing or other clients' reads.
+        cleaned = sanitize_runtime(data, configured_model=model)
+        result = validate_runtime(cleaned, configured_model=model)
+        # Validation remains strict even when alarm bits are raised. A
+        # partial *sanitized* alarm frame may still be published so the
+        # existing fault/warning sensors see the hardware alert.
+        if not result.valid and not has_hardware_alarm(cleaned):
             raise FelicityApiError(
                 f"Invalid {result.reason} in FLA48200-P realtime telemetry"
             )
+        if cleaned is not data:
+            data.clear()
+            data.update(cleaned)
 
     # Only the verified FLA48200-P profile may reuse the static basic-info
     # response. Other models keep the exact original four-command cadence.
-    model = entry.options.get("rated_model") or entry.data.get("model")
     cache_interval = (
         BASIC_INFO_REFRESH_SECONDS
         if isinstance(model, str) and model.strip().upper() == "FLA48200-P"
@@ -63,6 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         port,
         runtime_validator=_validate_runtime,
         basic_info_refresh_seconds=cache_interval,
+        preserve_alarm_frames=cache_interval is not None,
+        enforce_optional_budget=cache_interval is not None,
     )
 
     async def _async_update_data():

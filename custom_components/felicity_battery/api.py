@@ -31,6 +31,14 @@ MAX_REQUEST_SECONDS = 15.0
 # Keep one 30-second Home Assistant update cycle bounded, even if
 # optional requests or multiple retries are unresponsive.
 MAX_POLL_SECONDS = 25.0
+# A slow optional command must never invalidate successful realtime data.
+OPTIONAL_REQUEST_SECONDS = 2.0
+# Keep optional work safely short of the 25s coordinator deadline.
+# Includes slack for cancellations/socket close and HA scheduling.
+OPTIONAL_POLL_RESERVE_SECONDS = 3.0
+# Two failed or invalid realtime responses share an 18s bound, leaving
+# room for up to three optional 2s requests within the existing 25s poll.
+REALTIME_ATTEMPT_SECONDS = 9.0
 # Verified FLA48200-P firmware, ID, type fields are not realtime telemetry.
 BASIC_INFO_REFRESH_SECONDS = 300.0
 
@@ -134,10 +142,14 @@ class FelicityClient:
         *,
         runtime_validator: Callable[[dict[str, Any]], None] | None = None,
         basic_info_refresh_seconds: float | None = None,
+        preserve_alarm_frames: bool = False,
+        enforce_optional_budget: bool = False,
     ) -> None:
         self._host = host
         self._port = port
         self._runtime_validator = runtime_validator
+        self._preserve_alarm_frames = preserve_alarm_frames
+        self._enforce_optional_budget = enforce_optional_budget
         # Opt-in only for verified models. Default preserves all 4 requests
         # per poll for other battery types and existing standalone clients.
         if basic_info_refresh_seconds is not None and basic_info_refresh_seconds <= 0:
@@ -158,14 +170,44 @@ class FelicityClient:
         - wifilocalMonitor:get dev basice infor -> versions / type
         - wifilocalMonitor:get dev set infor    -> config / limits (multi-json)
         """
+        # Optional commands share a deadline with the critical read:
+        # their failure must not consume the whole 25-second poll.
+        loop = asyncio.get_running_loop()
+        optional_deadline = loop.time() + (
+            MAX_POLL_SECONDS - OPTIONAL_POLL_RESERVE_SECONDS
+        )
+
+        async def _optional_read(command: bytes) -> str:
+            if not self._enforce_optional_budget:
+                # Preserve original timing for unverified battery models.
+                return await self._async_read_raw_with_retry(command)
+            remaining = optional_deadline - loop.time()
+            if remaining <= 0:
+                raise FelicityApiError("Optional poll budget exhausted")
+            return await asyncio.wait_for(
+                self._async_read_raw_with_retry(command),
+                timeout=min(OPTIONAL_REQUEST_SECONDS, remaining),
+            )
+
         # 1. Runtime data (critical - if this fails, the whole update fails)
         # A syntactically complete reply can still be a truncated/invalid
         # measurement set. Retry once if the parser or model-specific
         # validator rejects it, using the normal read-only TCP command.
         for attempt in range(2):
-            real_raw = await self._async_read_raw_with_retry(
-                b"wifilocalMonitor:get dev real infor"
-            )
+            # Connection/read retries already happen inside this call.
+            # Do not multiply them on a transport failure (3 -> 6).
+            try:
+                read = self._async_read_raw_with_retry(
+                    b"wifilocalMonitor:get dev real infor"
+                )
+                if self._enforce_optional_budget:
+                    real_raw = await asyncio.wait_for(
+                        read, timeout=REALTIME_ATTEMPT_SECONDS
+                    )
+                else:
+                    real_raw = await read
+            except asyncio.TimeoutError as err:
+                raise FelicityApiError("Realtime telemetry deadline exceeded") from err
             try:
                 real = self._parse_real_payload(real_raw)
                 if self._runtime_validator is not None:
@@ -174,7 +216,7 @@ class FelicityClient:
             except FelicityApiError:
                 if attempt:
                     raise
-                _LOGGER.debug("Invalid runtime payload; retrying real-time read")
+                _LOGGER.debug("Invalid realtime payload; retrying read")
 
         data: Dict[str, Any] = dict(real)
 
@@ -194,7 +236,7 @@ class FelicityClient:
             data["_basic"] = dict(self._basic_info_cache)
         else:
             try:
-                basic_raw = await self._async_read_raw_with_retry(
+                basic_raw = await _optional_read(
                     b"wifilocalMonitor:get dev basice infor"
                 )
                 basic_objects = parse_json_objects(basic_raw)
@@ -211,7 +253,7 @@ class FelicityClient:
 
         # 3. Settings / limits (best effort, multiple JSON objects)
         try:
-            set_raw = await self._async_read_raw_with_retry(
+            set_raw = await _optional_read(
                 b"wifilocalMonitor:get dev set infor"
             )
             merged: Dict[str, Any] = {}
@@ -240,9 +282,7 @@ class FelicityClient:
         # if that ever becomes a problem for the module, this block can be
         # removed without affecting anything else.
         try:
-            date_raw = await self._async_read_raw_with_retry(
-                b"wifilocalMonitor:get Date"
-            )
+            date_raw = await _optional_read(b"wifilocalMonitor:get Date")
             date_objects = parse_json_objects(date_raw)
             if not date_objects:
                 raise FelicityApiError("No valid JSON in date/status payload")
@@ -510,16 +550,18 @@ class FelicityClient:
 
         _LOGGER.debug("Parsed Felicity real data dict: %s", result)
 
-        if "Batsoc" not in result and "Batt" not in result:
-            raise FelicityApiError(
-                f"Unable to parse essential fields from payload: {text}"
-            )
+        alarm_reported = self._preserve_alarm_frames and any(
+            type(result.get(key)) is int and result[key] != 0
+            for key in ("Bfault", "Bwarn", "BBfault", "BBwarn")
+        )
+        if "Batsoc" not in result and "Batt" not in result and not alarm_reported:
+            raise FelicityApiError("Unable to parse essential realtime fields")
 
         try:
             voltage_raw = result["Batt"][0][0]
         except (KeyError, IndexError, TypeError):
             voltage_raw = None
-        if isinstance(voltage_raw, (int, float)) and voltage_raw <= 0:
+        if isinstance(voltage_raw, (int, float)) and voltage_raw <= 0 and not alarm_reported:
             raise FelicityApiError(
                 "Invalid zero battery voltage in runtime payload; "
                 "keeping the previous Home Assistant state"

@@ -93,8 +93,13 @@ class ModelValidationTests(unittest.TestCase):
             data["BatcelList"][0][0] = 65535
             data["Batt"][0][0] = 0
             result = validation.validate_runtime(data, configured_model="FLA48200-P")
-            self.assertTrue(result.valid, alarm)
-            self.assertEqual(result.reason, "alarm_frame_preserved")
+            self.assertFalse(result.valid, alarm)
+            # An unclean frame is *never* declared physically valid merely
+            # because a nonzero hardware alarm is present.
+            sanitized = validation.sanitize_runtime(data, configured_model="FLA48200-P")
+            self.assertTrue(validation.has_hardware_alarm(sanitized))
+            self.assertIsNone(sanitized["BatcelList"])
+            self.assertIsNone(sanitized["Batt"][0][0])
 
     def test_minus_one_current_preserved_as_valid_measurement(self):
         data = sample()
