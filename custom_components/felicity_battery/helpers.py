@@ -260,3 +260,36 @@ def bms_state_snapshot(data: Mapping[str, Any]) -> dict[str, Any]:
         "batt_voltage_raw": _nested(data, "Batt", 0, 0),
         "battlist_voltage_raw": _nested(data, "BattList", 0, 0),
     }
+
+
+def format_firmware_components(major: Any, minor: Any) -> str | None:
+    """Format a reported composite FW version without treating sentinels as digits.
+
+    For example, DSwVer=65535 denotes an absent field, not the decimal
+    suffix 655-35. Keep valid major components visible with a clear
+    partial marker; never invent the missing suffix. The unmodified raw
+    components remain available in the version sensor's attributes.
+    """
+    if major is None:
+        return None
+    if (
+        type(major) not in (int, float)
+        or not float(major).is_integer()
+        or major < 0
+        or major in (32767, 65535)
+    ):
+        return "Не определена"
+    major_value = int(major)
+    missing_minor = (
+        type(minor) not in (int, float)
+        or not float(minor).is_integer()
+        or minor < 0
+        or minor in (32767, 65535)
+    )
+    if missing_minor:
+        if major_value == 0:
+            return "Не определена"
+        return f"{major_value} (неполная версия)"
+
+    minor_value = int(minor)
+    return f"{major_value}-{minor_value // 100:02d}-{minor_value % 100:02d}"

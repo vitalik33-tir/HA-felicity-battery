@@ -34,6 +34,7 @@ from .helpers import (
     cell_voltage_row,
     primary_row_is_cells,
     cell_extrema_indices,
+    format_firmware_components,
 )
 
 DEFAULT_MODEL = "Felicity Battery (local API)"
@@ -91,10 +92,7 @@ def _bcu_version(basic: dict[str, Any]) -> str | None:
     """
     major = basic.get("M1SwVer")
     minor = basic.get("DSwVer")
-    if not isinstance(major, (int, float)) or not isinstance(minor, (int, float)):
-        return None
-    minor = int(minor)
-    return f"{int(major)}-{minor // 100:02d}-{minor % 100:02d}"
+    return format_firmware_components(major, minor)
 
 
 def _estate_mode(code: Any) -> int | None:
@@ -1116,16 +1114,14 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             return _bcu_version(basic)
 
         if key in ("scu_version", "bmu_version"):
-            def _fmt(major: Any, minor: Any) -> str | None:
-                if not isinstance(major, (int, float)) or not isinstance(minor, (int, float)):
-                    return None
-                minor = int(minor)
-                return f"{int(major)}-{minor // 100:02d}-{minor % 100:02d}"
-
             if key == "scu_version":
-                return _fmt(basic.get("M2SwVer"), basic.get("CtHwVer"))
+                return format_firmware_components(
+                    basic.get("M2SwVer"), basic.get("CtHwVer")
+                )
             if key == "bmu_version":
-                return _fmt(basic.get("DHwVer"), basic.get("PwHwVer"))
+                return format_firmware_components(
+                    basic.get("DHwVer"), basic.get("PwHwVer")
+                )
 
         if key == "lcd_version":
             v = basic.get("BDsVer")
