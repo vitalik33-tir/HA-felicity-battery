@@ -41,6 +41,13 @@ The integration:
   - Battery State: recognized Estate 832 is displayed as "Ожидание";
     raw Estate code, hex value, mode bits and undecoded lower bits are
     exposed as diagnostic attributes.
+  - Optional read-only `BMS State Register (raw)` diagnostic entity (hidden
+    from the regular UI by default, but enabled for Recorder): tracks `Bstate`
+    along with `Estate`, their literal bit flags, and raw `Batt`/`BattList`
+    current and voltage fields from the same response. The values are
+    intentionally not converted into charge/discharge modes: this FLA48200-P
+    has only been observed in mode 832 so far, and both current fields
+    disagree at low currents. The existing sensors are unaffected.
 
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands

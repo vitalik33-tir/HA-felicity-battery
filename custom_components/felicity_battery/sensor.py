@@ -29,6 +29,7 @@ from .const import DOMAIN
 from .helpers import (
     battery_pack_count,
     battery_state,
+    bms_state_snapshot,
     cell_voltage_row,
     primary_row_is_cells,
     cell_extrema_indices,
@@ -568,6 +569,13 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         icon="mdi:battery-heart",
     ),
     FelicitySensorDescription(
+        key="bstate_raw",
+        name="BMS State Register (raw)",
+        icon="mdi:code-json",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_visible_default=False,
+    ),
+    FelicitySensorDescription(
         key="fault",
         name="Battery Fault Code",
         icon="mdi:alert",
@@ -1071,6 +1079,9 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         if key == "state":
             return battery_state(data.get("Estate"))
 
+        if key == "bstate_raw":
+            return bms_state_snapshot(data)["bstate_raw"]
+
         if key == "fault":
             v = data.get("Bfault")
             if v is None:
@@ -1170,6 +1181,11 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         # Report verified physical cell data while keeping physical slot
         # numbers (a missing slot must not shift the subsequent indexes).
+        if key == "bstate_raw":
+            snapshot = bms_state_snapshot(data)
+            snapshot.pop("bstate_raw", None)
+            return snapshot
+
         if key == "state":
             raw = data.get("Estate")
             if type(raw) is not int:

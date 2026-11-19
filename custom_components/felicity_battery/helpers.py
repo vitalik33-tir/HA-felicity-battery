@@ -225,3 +225,38 @@ class CellDriftConfirmation:
             self.pending_target = None
             self._pending_since = None
         return self.active
+
+
+def bms_state_snapshot(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Expose raw state and current registers without decoding their meaning.
+
+    These fields originate from one real-time response. This diagnostic
+    snapshot does not change any existing operating-mode/current sensors.
+    Unknown or sentinel state values are never interpreted as Standby.
+    """
+    def _valid_register(value: Any) -> int | None:
+        if type(value) is not int or value < 0 or value in (32767, 65535):
+            return None
+        return value
+
+    bstate = _valid_register(data.get("Bstate"))
+    estate = _valid_register(data.get("Estate"))
+    return {
+        "bstate_raw": bstate,
+        "bstate_hex": f"0x{bstate:04X}" if bstate is not None else None,
+        "estate_raw": estate,
+        "estate_hex": f"0x{estate:04X}" if estate is not None else None,
+        "bstate_equals_estate": (
+            bstate == estate if bstate is not None and estate is not None else None
+        ),
+        "bstate_bit_12": bool(bstate & 0x1000) if bstate is not None else None,
+        "bstate_bit_13": bool(bstate & 0x2000) if bstate is not None else None,
+        "bstate_bit_14": bool(bstate & 0x4000) if bstate is not None else None,
+        # Preserve both channels verbatim (including their -1 and 65535
+        # values), because scaling, sentinels and direction are not yet
+        # verified across battery models and operating conditions.
+        "batt_current_raw": _nested(data, "Batt", 1, 0),
+        "battlist_current_raw": _nested(data, "BattList", 1, 0),
+        "batt_voltage_raw": _nested(data, "Batt", 0, 0),
+        "battlist_voltage_raw": _nested(data, "BattList", 0, 0),
+    }

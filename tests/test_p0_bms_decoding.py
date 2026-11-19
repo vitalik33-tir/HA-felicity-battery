@@ -149,7 +149,7 @@ class TestBatteryP0(unittest.TestCase):
 
         self.assertFalse(keys(baseline) - keys(updated))
         self.assertEqual(keys(updated) - keys(baseline),
-                         {"rated_capacity_ah", "max_cell_index", "min_cell_index"})
+                         {"rated_capacity_ah", "max_cell_index", "min_cell_index", "bstate_raw"})
         self.assertIn('self._attr_unique_id = f"{entry.entry_id}_{description.key}"',
                       updated)
 
