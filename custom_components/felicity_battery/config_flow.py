@@ -7,6 +7,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.data_entry_flow import FlowResult
 
@@ -78,4 +79,40 @@ class FelicityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "report this, so it's only used for display."
                 )
             },
+        )
+
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Allow nameplate metadata without changing the existing config entry."""
+        return FelicityBatteryOptionsFlow()
+
+
+class FelicityBatteryOptionsFlow(config_entries.OptionsFlow):
+    """Optional, manually verified nameplate details. Never inferred from SubType."""
+
+    async def async_step_init(self, user_input=None):
+        current = self.config_entry.options
+        if user_input is not None:
+            options = dict(current)
+            model = str(user_input.get("rated_model", "")).strip()
+            capacity = float(user_input.get("rated_capacity_ah", 0))
+            if model:
+                options["rated_model"] = model
+            else:
+                options.pop("rated_model", None)
+            if capacity > 0:
+                options["rated_capacity_ah"] = capacity
+            else:
+                options.pop("rated_capacity_ah", None)
+            return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Optional("rated_model", default=current.get("rated_model", "")): str,
+                vol.Optional("rated_capacity_ah", default=current.get("rated_capacity_ah", 0.0)):
+                    vol.All(vol.Coerce(float), vol.Range(min=0, max=5000)),
+            }),
         )

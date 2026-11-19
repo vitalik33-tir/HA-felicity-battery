@@ -120,7 +120,11 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         sw_version = _bcu_version(basic) or basic.get("version")
         host = self._entry.data.get(CONF_HOST)
         serial_display = f"{serial} ({host})" if host else serial
-        model = self._entry.data.get("model") or _fallback_model(basic)
+        model = (
+            self._entry.options.get("rated_model")
+            or self._entry.data.get("model")
+            or _fallback_model(basic)
+        )
 
         return {
             "identifiers": {(DOMAIN, serial)},

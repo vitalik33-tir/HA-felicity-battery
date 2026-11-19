@@ -26,7 +26,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .helpers import battery_pack_count, battery_state
+from .helpers import (
+    battery_pack_count,
+    battery_state,
+    cell_voltage_row,
+    primary_row_is_cells,
+    cell_extrema_indices,
+)
 
 DEFAULT_MODEL = "Felicity Battery (local API)"
 
@@ -235,13 +241,22 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         suggested_display_precision=1,
     ),
     FelicitySensorDescription(
-        # Batsoc[0][2], scale /1000. Matches the FSOLAR app's displayed
-        # battery capacity (Ah) exactly.
+        # BMS capacity class, not necessarily the manufacturer's rated capacity.
+        # Existing key/unique_id preserved for history and automations.
         key="capacity_ah",
-        name="Battery Capacity",
+        name="BMS Capacity Class",
         native_unit_of_measurement="Ah",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-charging-100",
+        suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="rated_capacity_ah",
+        name="Rated Battery Capacity",
+        native_unit_of_measurement="Ah",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:battery-check",
         suggested_display_precision=1,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -298,6 +313,18 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-low",
         suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="max_cell_index",
+        name="Highest Voltage Cell Number",
+        icon="mdi:numeric-positive-1",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FelicitySensorDescription(
+        key="min_cell_index",
+        name="Lowest Voltage Cell Number",
+        icon="mdi:numeric-negative-1",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FelicitySensorDescription(
@@ -737,7 +764,7 @@ async def async_setup_entry(
             or (desc.key in _DATE_INFO_KEYS and "_date" not in coordinator_data)
             or (desc.key in _SETTINGS_KEYS and "_settings" not in coordinator_data)
         )
-        if entity.native_value is not None or source_missing:
+        if entity.native_value is not None or source_missing or desc.key == "rated_capacity_ah":
             entities.append(entity)
         else:
             skipped.append(desc.key)
@@ -785,7 +812,11 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         sw_version = _bcu_version(basic) or basic.get("version")
         host = self._entry.data.get(CONF_HOST)
         serial_display = f"{serial} ({host})" if host else serial
-        model = self._entry.data.get("model") or _fallback_model(basic)
+        model = (
+            self._entry.options.get("rated_model")
+            or self._entry.data.get("model")
+            or _fallback_model(basic)
+        )
 
         return {
             "identifiers": {(DOMAIN, serial)},
@@ -809,6 +840,8 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             except (ValueError, IndexError):
                 n = "?"
             cells_list = (self.coordinator.data or {}).get("BatcelList")
+            if primary_row_is_cells(self.coordinator.data or {}):
+                return f"Cell {n} Voltage"
             if isinstance(cells_list, list) and len(cells_list) >= 2:
                 return f"Pack {n} Voltage"
             return f"Cell {n} Voltage"
@@ -916,6 +949,10 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             raw = get_nested(("Batsoc", 0, 2))
             return round(raw / 1000, 1) if raw is not None else None
 
+        if key == "rated_capacity_ah":
+            rated = self._entry.options.get("rated_capacity_ah")
+            return float(rated) if isinstance(rated, (int, float)) and rated > 0 else None
+
         if key == "charge_voltage_limit":
             raw = get_nested(("LVolCur", 0, 0))
             return round(raw / 10, 1) if raw is not None else None
@@ -949,6 +986,10 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             if max_raw is None or min_raw is None:
                 return None
             return round((max_raw - min_raw) / 1000, 3)
+
+        if key in ("max_cell_index", "min_cell_index"):
+            max_index, min_index = cell_extrema_indices(data)
+            return max_index if key == "max_cell_index" else min_index
 
         # --- Pack/string OR real cell voltages (BatcelList) - ADAPTIVE,
         # see also the `name` property override below.
@@ -994,7 +1035,10 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             # pinning them at a permanent, misleading 0 V.
             if raw is None or raw in (0, 65535):
                 return None
-            if len(cells_list) >= 2:
+            # FLA48200-P: row 0 has 16 true cell values (mV) even
+            # when extra rows exist. Do not infer a 0.01-V scale from
+            # len(BatcelList): validate the physical row instead.
+            if len(cells_list) >= 2 and not primary_row_is_cells(data):
                 return round(raw / 100.0, 2)
             return round(raw / 1000.0, 3)
 
@@ -1123,33 +1167,30 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
-        # Per-cell aggregation for the cell_drift sensor
-        # NOTE: uses BatcelList[1] (the real per-cell array, ~3.3V each,
-        # confirmed against the FSOLAR app) - it previously read
-        # BatcelList[0], which is actually the pack/string voltages
-        # (~53V) and produced meaningless "cell" attributes here.
+        # Report verified physical cell data while keeping physical slot
+        # numbers (a missing slot must not shift the subsequent indexes).
         if key == "cell_drift":
-            attrs: dict[str, Any] = {}
-            cells_list = data.get("BatcelList")
-            if (
-                isinstance(cells_list, list)
-                and len(cells_list) > 1
-                and isinstance(cells_list[1], list)
-            ):
-                raw_cells = cells_list[1]
-                cells_v: list[float] = []
-                for c in raw_cells:
-                    if isinstance(c, int) and c not in (0, 65535):
-                        cells_v.append(round(c / 1000.0, 3))
-                if cells_v:
-                    attrs["cells"] = cells_v
-                    max_v = max(cells_v)
-                    min_v = min(cells_v)
-                    attrs["max_cell_voltage"] = max_v
-                    attrs["min_cell_voltage"] = min_v
-                    attrs["max_cell_index"] = cells_v.index(max_v) + 1
-                    attrs["min_cell_index"] = cells_v.index(min_v) + 1
-            return attrs or None
+            row_index = cell_voltage_row(data)
+            rows = data.get("BatcelList")
+            if row_index is None or not isinstance(rows, list):
+                return None
+            row = rows[row_index]
+            cells_v = [
+                round(value / 1000.0, 3)
+                if type(value) is int and 2000 <= value <= 4500 else None
+                for value in row
+            ]
+            measured = [value for value in cells_v if value is not None]
+            if not measured:
+                return None
+            max_index, min_index = cell_extrema_indices(data)
+            return {
+                "cells": cells_v,
+                "max_cell_voltage": max(measured),
+                "min_cell_voltage": min(measured),
+                "max_cell_index": max_index,
+                "min_cell_index": min_index,
+            }
 
         if key == "ttl_pack":
             attrs: dict[str, Any] = {}

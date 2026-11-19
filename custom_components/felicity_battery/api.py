@@ -287,8 +287,8 @@ class FelicityClient:
         for key in ("wifiSN", "DevSN"):
             if key not in result:
                 result[key] = _find_str(key)
-        if result.get("Bwarn") is None:
-            result["Bwarn"] = 0
+        # Missing Bwarn is UNKNOWN, not "no warning". Preserve absent
+        # fields so the warning entity returns None/unavailable.
 
         # Batt: [[53300],[1],[null]]
         m = re.search(
