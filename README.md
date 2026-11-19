@@ -67,6 +67,33 @@ equipment. To run tests: python3 -m pytest -q. The committed sample fixture
 is stripped of serial numbers and network metadata. To roll back P1, restore
 commit 78a53ca of the feature branch and restart Home Assistant.
 
+### P2.1 TCP reliability audit (experimental branch)
+
+The existing transport remains one TCP connection per command, four
+sequential read-only commands per 30-second update. P2.1 adds only safety
+guards to the existing read loop, without changing command bytes, the
+0.4-second inter-fragment idle timeout, response parsing formats or retries:
+
+- 15-second total per-request deadline, including connect/write/read;
+- 256 KiB maximum response payload (observed FLA48200-P replies are
+  approximately 110 to 870 bytes per command);
+- a bounded socket-close wait;
+- rejection and normal retry of a visibly cut-off JSON object, including
+  an incomplete object after an otherwise complete first object.
+
+A timeout or oversized/incomplete reply raises FelicityApiError so the
+existing retry/coordinator failure handling remains authoritative.
+The basic-info, settings and date commands remain best-effort; realtime
+telemetry is still mandatory. The bound does not prove that a balanced
+but semantically incomplete frame is valid: model-specific payload
+validation remains a separate P2.2 concern.
+
+Tests/test_tcp_p2.py uses a local in-process fake BMS TCP server with
+fragmentation, forced disconnect, retry, timeout, continuous trickle,
+oversized payload and a complete four-command cycle. No battery writes,
+extra polling or inverter changes are involved. P2.1 rollback: restore
+GitHub commit 1be50d2 and restart Home Assistant.
+
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands
 are kept when one of those commands fails transiently during startup, allowing

@@ -36,6 +36,13 @@ class FelicityPayloadTests(unittest.TestCase):
 
         self.assertEqual(objects, [{"missing": None, "label": "None"}])
 
+    def test_tcp_completeness_check_ignores_braces_inside_strings(self) -> None:
+        complete = '{"note": "nested {braces} and escaped \\"quote\\"", "v": 1}{"ok": true}'
+        truncated = complete + '{"partial": ['
+        self.assertFalse(api.has_unterminated_object(complete))
+        self.assertTrue(api.has_unterminated_object(truncated))
+        self.assertFalse(api.has_unterminated_object("{'label': '{ok}', 'value': None}"))
+
     def test_extracts_concatenated_objects_with_braces_in_string(self) -> None:
         objects = api.parse_json_objects(
             "{'first': '{ok}', 'value': None}{'second': 2}"

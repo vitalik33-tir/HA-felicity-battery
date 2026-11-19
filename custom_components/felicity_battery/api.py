@@ -24,6 +24,11 @@ IDLE_TIMEOUT = 0.4
 READ_RETRIES = 2
 READ_RETRY_BACKOFF = 0.5
 
+# Sanity bounds: verified FLA48200-P frames are < 1 KiB per command.
+# Allow ample room for other models and multi-object replies.
+MAX_RESPONSE_BYTES = 256 * 1024
+MAX_REQUEST_SECONDS = 15.0
+
 _BARE_NONE_RE = re.compile(r'(?<!["\w])None(?!["\w])')
 
 
@@ -63,6 +68,32 @@ def extract_json_objects(text: str) -> list[str]:
                 start = None
 
     return objects
+
+
+def has_unterminated_object(text: str) -> bool:
+    """Detect a cut-off JSON object after any number of complete objects.
+
+    Balanced-but-malformed vendor payloads still use existing regex
+    fallbacks. Ignore braces inside quoted strings.
+    """
+    depth = 0
+    quoted = False
+    escaped = False
+    for char in normalize_payload(text):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char == "{":
+            depth += 1
+        elif char == "}" and depth:
+            depth -= 1
+    return depth > 0
 
 
 def parse_json_objects(text: str) -> list[dict[str, Any]]:
@@ -204,10 +235,12 @@ class FelicityClient:
         IDLE_TIMEOUT seconds instead of bailing out after the first
         '}' we see, so multi-fragment replies aren't truncated.
         """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + MAX_REQUEST_SECONDS
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(self._host, self._port),
-                timeout=CONNECT_TIMEOUT,
+                timeout=min(CONNECT_TIMEOUT, max(0.0, deadline - loop.time())),
             )
         except Exception as err:
             raise FelicityApiError(
@@ -217,28 +250,50 @@ class FelicityClient:
         data = b""
         try:
             writer.write(command)
-            await writer.drain()
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise FelicityApiError("TCP request deadline exceeded")
+            await asyncio.wait_for(writer.drain(), timeout=remaining)
 
-            # Wait (generously) for the first byte of the response.
+            # The first byte and the whole response share an absolute
+            # deadline; an endless trickle must not block coordinator updates.
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise FelicityApiError("TCP request deadline exceeded")
             try:
                 data = await asyncio.wait_for(
-                    reader.read(4096), timeout=FIRST_BYTE_TIMEOUT
+                    reader.read(4096),
+                    timeout=min(FIRST_BYTE_TIMEOUT, remaining),
                 )
             except asyncio.TimeoutError:
+                if loop.time() >= deadline:
+                    raise FelicityApiError("TCP request deadline exceeded")
                 data = b""
 
-            # Keep draining the socket while data keeps trickling in.
+            if len(data) > MAX_RESPONSE_BYTES:
+                raise FelicityApiError("TCP response size limit exceeded")
+
+            # Keep draining while data arrives, but stop at both limits.
             while data:
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    raise FelicityApiError("TCP request deadline exceeded")
                 try:
                     chunk = await asyncio.wait_for(
-                        reader.read(4096), timeout=IDLE_TIMEOUT
+                        reader.read(4096), timeout=min(IDLE_TIMEOUT, remaining)
                     )
                 except asyncio.TimeoutError:
+                    if loop.time() >= deadline:
+                        raise FelicityApiError("TCP request deadline exceeded")
                     break
                 if not chunk:
                     break
                 data += chunk
+                if len(data) > MAX_RESPONSE_BYTES:
+                    raise FelicityApiError("TCP response size limit exceeded")
 
+        except FelicityApiError:
+            raise
         except Exception as err:
             raise FelicityApiError(
                 f"Error talking to {self._host}:{self._port}: {err}"
@@ -246,7 +301,7 @@ class FelicityClient:
         finally:
             writer.close()
             try:
-                await writer.wait_closed()
+                await asyncio.wait_for(writer.wait_closed(), timeout=1.0)
             except Exception:
                 pass
 
@@ -254,6 +309,8 @@ class FelicityClient:
             raise FelicityApiError("No data received from battery")
 
         text = data.decode("ascii", errors="ignore").strip()
+        if has_unterminated_object(text):
+            raise FelicityApiError("TCP response contains incomplete JSON object")
         _LOGGER.debug("Raw Felicity response for %r: %r", command, text)
         return text
 
