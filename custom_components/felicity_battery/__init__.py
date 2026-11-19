@@ -12,7 +12,12 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api import FelicityApiError, FelicityClient, async_get_data_bounded
+from .api import (
+    BASIC_INFO_REFRESH_SECONDS,
+    FelicityApiError,
+    FelicityClient,
+    async_get_data_bounded,
+)
 from .validation import validate_runtime
 from .const import (
     DEFAULT_SCAN_INTERVAL,
@@ -45,7 +50,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 f"Invalid {result.reason} in FLA48200-P realtime telemetry"
             )
 
-    client = FelicityClient(host, port, runtime_validator=_validate_runtime)
+    # Only the verified FLA48200-P profile may reuse the static basic-info
+    # response. Other models keep the exact original four-command cadence.
+    model = entry.options.get("rated_model") or entry.data.get("model")
+    cache_interval = (
+        BASIC_INFO_REFRESH_SECONDS
+        if isinstance(model, str) and model.strip().upper() == "FLA48200-P"
+        else None
+    )
+    client = FelicityClient(
+        host,
+        port,
+        runtime_validator=_validate_runtime,
+        basic_info_refresh_seconds=cache_interval,
+    )
 
     async def _async_update_data():
         try:

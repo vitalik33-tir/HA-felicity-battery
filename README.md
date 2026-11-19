@@ -142,6 +142,32 @@ No real power interruption or network disconnection was performed.
 To revert P2.3, reinstall experiment-branch commit c7d66df and restart
 Home Assistant.
 
+### P2.4 Model-safe polling reduction (experimental branch)
+
+Measured FLA48200-P TCP response times (three independent four-command
+cycles): ~454 ms realtime, 427 ms basic identity/firmware, 446 ms BMS
+settings, 431 ms Wi-Fi/date. Only realtime cell/current and date fields
+changed in this short sample; unchanged settings in a short sample are NOT
+proof that they can be polled less often.
+
+For an explicitly configured FLA48200-P, basic identity/firmware data is
+read at startup, then no less frequently than once every 300 seconds. A
+local copy of its response is supplied to the existing entity readers
+while still within the TTL. Firmware changes can therefore be reported up
+to five minutes later during continuous service; restarting or a failed
+full poll forces a fresh identity query. After an expired identity query
+fails, stale values are not substituted. Only successful reads renew TTL.
+
+The realtime telemetry, all 62 BMS configuration/limit fields, and dynamic
+Wi-Fi/date status continue to be queried every 30 seconds. For ALL other
+battery models, all four original commands are retained every 30 seconds.
+
+On-device verification: four consecutive complete read-only polls required
+13 connections instead of 16; the first took ~1.76 s, subsequent polls
+~1.31-1.37 s. Simulated TTL expiry triggered a fresh basic-info query.
+No network, BMS, charge/discharge or inverter settings changed.
+P2.4 rollback: restore experimental-branch commit 0c878cd and restart HA.
+
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands
 are kept when one of those commands fails transiently during startup, allowing

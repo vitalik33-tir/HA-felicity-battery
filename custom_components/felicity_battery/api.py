@@ -31,6 +31,8 @@ MAX_REQUEST_SECONDS = 15.0
 # Keep one 30-second Home Assistant update cycle bounded, even if
 # optional requests or multiple retries are unresponsive.
 MAX_POLL_SECONDS = 25.0
+# Verified FLA48200-P firmware, ID, type fields are not realtime telemetry.
+BASIC_INFO_REFRESH_SECONDS = 300.0
 
 _BARE_NONE_RE = re.compile(r'(?<!["\w])None(?!["\w])')
 
@@ -131,10 +133,23 @@ class FelicityClient:
         port: int,
         *,
         runtime_validator: Callable[[dict[str, Any]], None] | None = None,
+        basic_info_refresh_seconds: float | None = None,
     ) -> None:
         self._host = host
         self._port = port
         self._runtime_validator = runtime_validator
+        # Opt-in only for verified models. Default preserves all 4 requests
+        # per poll for other battery types and existing standalone clients.
+        if basic_info_refresh_seconds is not None and basic_info_refresh_seconds <= 0:
+            raise ValueError("basic_info_refresh_seconds must be positive")
+        self._basic_info_refresh_seconds = basic_info_refresh_seconds
+        self._basic_info_cache: dict[str, Any] | None = None
+        self._basic_info_cache_at: float | None = None
+
+    def invalidate_basic_info_cache(self) -> None:
+        """Require a fresh identity/version query after a failed full poll."""
+        self._basic_info_cache = None
+        self._basic_info_cache_at = None
 
     async def async_get_data(self) -> dict:
         """Send commands and combine all data into one dict.
@@ -163,17 +178,36 @@ class FelicityClient:
 
         data: Dict[str, Any] = dict(real)
 
-        # 2. Basic info (best effort)
-        try:
-            basic_raw = await self._async_read_raw_with_retry(
-                b"wifilocalMonitor:get dev basice infor"
-            )
-            basic_objects = parse_json_objects(basic_raw)
-            if not basic_objects:
-                raise FelicityApiError("No valid JSON in basic info payload")
-            data["_basic"] = basic_objects[0]
-        except Exception as err:
-            _LOGGER.debug("Failed to read basic info: %s", err)
+        # 2. Basic info (best effort). Identity and firmware fields of
+        # verified FLA48200-P are static between module restarts. Reuse a
+        # bounded copy for up to five minutes, preserving the existing
+        # response shape and sensor entity IDs. All other models still
+        # request basic info on every poll.
+        now = asyncio.get_running_loop().time()
+        use_cache = (
+            self._basic_info_refresh_seconds is not None
+            and self._basic_info_cache is not None
+            and self._basic_info_cache_at is not None
+            and 0 <= now - self._basic_info_cache_at < self._basic_info_refresh_seconds
+        )
+        if use_cache:
+            data["_basic"] = dict(self._basic_info_cache)
+        else:
+            try:
+                basic_raw = await self._async_read_raw_with_retry(
+                    b"wifilocalMonitor:get dev basice infor"
+                )
+                basic_objects = parse_json_objects(basic_raw)
+                if not basic_objects:
+                    raise FelicityApiError("No valid JSON in basic info payload")
+                data["_basic"] = basic_objects[0]
+                if self._basic_info_refresh_seconds is not None:
+                    self._basic_info_cache = dict(basic_objects[0])
+                    self._basic_info_cache_at = asyncio.get_running_loop().time()
+            except Exception as err:
+                # Never keep presenting an expired identity snapshot.
+                self.invalidate_basic_info_cache()
+                _LOGGER.debug("Failed to read basic info: %s", err)
 
         # 3. Settings / limits (best effort, multiple JSON objects)
         try:
@@ -506,6 +540,12 @@ async def async_get_data_bounded(
     try:
         return await asyncio.wait_for(client.async_get_data(), timeout=timeout)
     except TimeoutError as err:
+        if callable(reset := getattr(client, "invalidate_basic_info_cache", None)):
+            reset()
         raise FelicityApiError(
             f"Battery polling cycle exceeded {timeout:g}s deadline"
         ) from err
+    except FelicityApiError:
+        if callable(reset := getattr(client, "invalidate_basic_info_cache", None)):
+            reset()
+        raise
