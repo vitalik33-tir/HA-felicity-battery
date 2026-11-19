@@ -20,7 +20,10 @@ The integration:
     scaled as either "Pack N Voltage" or "Cell N Voltage" depending on
     what the connected battery actually reports (single- vs. multi-array
     packs)
-  - Battery SOH, Battery Capacity (Ah)
+  - Battery SOH, rated battery capacity (configured from the official
+    nameplate) and BMS capacity class (raw Batsoc field). BMS capacity class
+    is hidden in the UI by default for new installations; an existing entity
+    can be hidden in Settings without disabling it or changing its entity ID.
   - Charge/Discharge Voltage Limit, Max Charge/Discharge Current (runtime)
   - Working Mode (official Felicity enum, e.g. Standby/Battery Mode/Fault/...)
   - Battery Pack Count
@@ -32,7 +35,12 @@ The integration:
     Voltage, Cell Voltage @20%/@80%, Charge/Discharge Current Limit
     from BMS protection settings)
   - binary sensors: Battery Fault, Battery Warning, Battery Charging,
-    Battery Discharging, Battery Standby, Cell Voltage Drift High
+    Battery Discharging, Battery Standby, Cell Voltage Drift High (instant),
+    Cell Voltage Drift Confirmed (>=30 mV for 5 minutes; clears at <=20 mV
+    for 5 minutes). The original instant indicator remains unchanged.
+  - Battery State: recognized Estate 832 is displayed as "Ожидание";
+    raw Estate code, hex value, mode bits and undecoded lower bits are
+    exposed as diagnostic attributes.
 
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands

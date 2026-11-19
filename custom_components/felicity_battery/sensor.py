@@ -245,6 +245,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         # Existing key/unique_id preserved for history and automations.
         key="capacity_ah",
         name="BMS Capacity Class",
+        entity_registry_visible_default=False,
         native_unit_of_measurement="Ah",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-charging-100",
@@ -1169,6 +1170,19 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         # Report verified physical cell data while keeping physical slot
         # numbers (a missing slot must not shift the subsequent indexes).
+        if key == "state":
+            raw = data.get("Estate")
+            if type(raw) is not int:
+                return None
+            mode = (raw >> 12) & 0xF
+            return {
+                "estate_raw": raw,
+                "estate_hex": f"0x{raw:04X}",
+                "mode_bits": mode,
+                "mode_from_bits": {0: "standby", 1: "discharging", 2: "charging"}.get(mode, "unclassified"),
+                "unclassified_lower_bits_hex": f"0x{raw & 0x0FFF:03X}",
+            }
+
         if key == "cell_drift":
             row_index = cell_voltage_row(data)
             rows = data.get("BatcelList")

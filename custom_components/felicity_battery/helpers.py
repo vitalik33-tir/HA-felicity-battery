@@ -5,11 +5,12 @@ Keep BMS protocol/model assumptions here, outside Home Assistant entity code.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Mapping
 
 _BATTERY_STATES = {
     320: "full",
-    832: "standby (832; flags 0x0340)",  # Mode nibble=0; lower flags unclassified.
+    832: "Ожидание",  # Mode nibble=0; preserve raw bitfield in sensor attributes.
     960: "standby",
     9152: "charging",
     5056: "discharging",
@@ -147,3 +148,80 @@ def cell_extrema_indices(data: Mapping[str, Any]) -> tuple[int | None, int | Non
         else:
             positions.append(next(i + 1 for i, v in present if v == target))
     return (positions[0], positions[1])
+
+
+class CellDriftConfirmation:
+    """Separate warning, with hysteresis and sustained-sample confirmation.
+
+    The legacy Cell Voltage Drift High remains an immediate indication.
+    On startup a new alarm requires a full confirmation period. Loss of
+    data cancels an in-progress transition, without fabricating OK.
+    """
+
+    def __init__(
+        self,
+        *,
+        on_threshold_mv: int = 30,
+        off_threshold_mv: int = 20,
+        delay_seconds: int = 300,
+        max_sample_gap_seconds: int = 90,
+    ) -> None:
+        if (
+            not 0 <= off_threshold_mv < on_threshold_mv
+            or delay_seconds <= 0
+            or max_sample_gap_seconds <= 0
+        ):
+            raise ValueError("Invalid threshold hysteresis, delay or sample gap")
+        self.on_threshold_mv = on_threshold_mv
+        self.off_threshold_mv = off_threshold_mv
+        self.delay_seconds = delay_seconds
+        self.max_sample_gap_seconds = max_sample_gap_seconds
+        self.active = False
+        self.has_valid_sample = False
+        self.last_spread_mv: int | None = None
+        self.pending_target: bool | None = None
+        self._pending_since: datetime | None = None
+        self._last_sample_at: datetime | None = None
+
+    def update(self, spread_mv: int | None, now: datetime) -> bool:
+        """Consume one measurement at a known timestamp."""
+        if not isinstance(now, datetime) or now.tzinfo is None:
+            raise ValueError("An aware datetime is required")
+        if type(spread_mv) is not int or spread_mv < 0:
+            self.last_spread_mv = None
+            self.pending_target = None
+            self._pending_since = None
+            self._last_sample_at = None
+            return self.active
+
+        # A sample after a long network outage does not prove that
+        # the condition persisted throughout the missing interval.
+        if self._last_sample_at is not None:
+            sample_gap = (now - self._last_sample_at).total_seconds()
+            if sample_gap < 0 or sample_gap > self.max_sample_gap_seconds:
+                self.pending_target = None
+                self._pending_since = None
+        self._last_sample_at = now
+        self.has_valid_sample = True
+        self.last_spread_mv = spread_mv
+        # Distinct thresholds keep the alert stable at 21..29mV.
+        transition = (
+            spread_mv <= self.off_threshold_mv
+            if self.active else spread_mv >= self.on_threshold_mv
+        )
+        if not transition:
+            self.pending_target = None
+            self._pending_since = None
+            return self.active
+
+        desired = not self.active
+        if self.pending_target != desired or self._pending_since is None:
+            self.pending_target = desired
+            self._pending_since = now
+        elif now >= self._pending_since and (
+            now - self._pending_since
+        ).total_seconds() >= self.delay_seconds:
+            self.active = desired
+            self.pending_target = None
+            self._pending_since = None
+        return self.active

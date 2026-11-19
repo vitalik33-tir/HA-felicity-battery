@@ -2,6 +2,7 @@ from __future__ import annotations
 # -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -17,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .helpers import CellDriftConfirmation
 from .sensor import _bcu_version, _fallback_model
 
 # Threshold for a "large" cell voltage spread, in volts
@@ -74,6 +76,12 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[FelicityBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    FelicityBinarySensorDescription(
+        key="cell_drift_confirmed",
+        name="Cell Voltage Drift Confirmed",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 )
 
 
@@ -108,6 +116,38 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self.entity_description = description
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._drift_confirmation: CellDriftConfirmation | None = (
+            CellDriftConfirmation() if description.key == "cell_drift_confirmed" else None
+        )
+        if self._drift_confirmation is not None:
+            self._drift_confirmation.update(
+                self._cell_drift_mv(), datetime.now(timezone.utc)
+            )
+
+    def _cell_drift_mv(self) -> int | None:
+        """Read cell spread from the BMS payload, in millivolts."""
+        values = (self.coordinator.data or {}).get("BMaxMin")
+        try:
+            maximum, minimum = values[0][0], values[0][1]
+        except (TypeError, IndexError, KeyError):
+            return None
+        if (
+            type(maximum) is not int
+            or type(minimum) is not int
+            or minimum <= 0
+            or maximum < minimum
+        ):
+            return None
+        return maximum - minimum
+
+    def _handle_coordinator_update(self) -> None:
+        """Advance the confirmation timer once per real coordinator update."""
+        if self._drift_confirmation is not None:
+            self._drift_confirmation.update(
+                self._cell_drift_mv() if self.coordinator.last_update_success else None,
+                datetime.now(timezone.utc),
+            )
+        super()._handle_coordinator_update()
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -189,6 +229,13 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
                 return None
             return abs(i_raw / 10.0) <= 0.05
 
+        if key == "cell_drift_confirmed":
+            if self._drift_confirmation is None or not self._drift_confirmation.has_valid_sample:
+                return None
+            if self._drift_confirmation.last_spread_mv is None:
+                return None
+            return self._drift_confirmation.active
+
         if key == "cell_drift_high":
             max_raw = get_nested(("BMaxMin", 0, 0))
             min_raw = get_nested(("BMaxMin", 0, 1))
@@ -204,6 +251,19 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Attributes for some binary sensors."""
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
+
+        if key == "cell_drift_confirmed":
+            if self._drift_confirmation is None:
+                return None
+            return {
+                "drift_mv": self._drift_confirmation.last_spread_mv,
+                "activation_threshold_mv": self._drift_confirmation.on_threshold_mv,
+                "clear_threshold_mv": self._drift_confirmation.off_threshold_mv,
+                "activation_delay_seconds": self._drift_confirmation.delay_seconds,
+                "clear_delay_seconds": self._drift_confirmation.delay_seconds,
+                "max_sample_gap_seconds": self._drift_confirmation.max_sample_gap_seconds,
+                "pending_transition": self._drift_confirmation.pending_target,
+            }
 
         if key == "cell_drift_high":
             attrs: dict[str, Any] = {}
