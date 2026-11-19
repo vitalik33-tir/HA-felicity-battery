@@ -28,6 +28,9 @@ READ_RETRY_BACKOFF = 0.5
 # Allow ample room for other models and multi-object replies.
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_REQUEST_SECONDS = 15.0
+# Keep one 30-second Home Assistant update cycle bounded, even if
+# optional requests or multiple retries are unresponsive.
+MAX_POLL_SECONDS = 25.0
 
 _BARE_NONE_RE = re.compile(r'(?<!["\w])None(?!["\w])')
 
@@ -489,3 +492,20 @@ class FelicityClient:
             )
 
         return result
+
+
+async def async_get_data_bounded(
+    client: FelicityClient, *, timeout: float = MAX_POLL_SECONDS
+) -> dict[str, Any]:
+    """Bound a complete read-only poll, including every retry and option.
+
+    Fail, don't return stale data. The Home Assistant coordinator will mark
+    all subscribed entities unavailable and automatically schedule retries.
+    Timeout cancellation propagates into socket-cleanup finally blocks.
+    """
+    try:
+        return await asyncio.wait_for(client.async_get_data(), timeout=timeout)
+    except TimeoutError as err:
+        raise FelicityApiError(
+            f"Battery polling cycle exceeded {timeout:g}s deadline"
+        ) from err

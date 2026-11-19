@@ -120,6 +120,28 @@ frames, retry/connection-loss simulation, plus real read-only FLA48200-P
 queries. Does not change BMS settings or inverter controls. For a P2.2
 rollback, restore feature-branch commit 64fa4e9 and restart Home Assistant.
 
+### P2.3 Link loss and recovery (experimental branch)
+
+Home Assistant Core 2026.11.2 DataUpdateCoordinator already serializes
+scheduled and manual refreshes, marks CoordinatorEntity sensors unavailable
+when an UpdateFailed occurs, and schedules further refreshes automatically
+after an unsuccessful cycle. No custom reconnect task or cached-value
+fallback is added.
+
+Each complete Felicity poll now has a 25-second deadline (below the
+30-second scan interval), including realtime data, three optional commands,
+read retries and TCP socket cleanup. On expiry a FelicityApiError becomes
+the existing UpdateFailed; the next scheduled HA poll opens fresh sockets.
+The complete four-command cycle measured ~1.75 seconds on the real pack.
+
+Tests simulate repeated remote disconnects, continued outage, first
+successful reconnection, fresh measurements, an unresponsive optional
+request, socket closing under cancellation, repeated timeouts with no
+accumulating tasks, and the unchanged successful response structure.
+No real power interruption or network disconnection was performed.
+To revert P2.3, reinstall experiment-branch commit c7d66df and restart
+Home Assistant.
+
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands
 are kept when one of those commands fails transiently during startup, allowing

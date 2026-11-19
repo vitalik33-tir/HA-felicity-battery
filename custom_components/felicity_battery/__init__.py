@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api import FelicityApiError, FelicityClient
+from .api import FelicityApiError, FelicityClient, async_get_data_bounded
 from .validation import validate_runtime
 from .const import (
     DEFAULT_SCAN_INTERVAL,
@@ -49,7 +49,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _async_update_data():
         try:
-            return await client.async_get_data()
+            return await async_get_data_bounded(client)
         except FelicityApiError as err:
             raise UpdateFailed(str(err)) from err
 
