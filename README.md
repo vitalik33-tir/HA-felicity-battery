@@ -94,6 +94,32 @@ oversized payload and a complete four-command cycle. No battery writes,
 extra polling or inverter changes are involved. P2.1 rollback: restore
 GitHub commit 1be50d2 and restart Home Assistant.
 
+### P2.2 Model-scoped runtime validation (experimental branch)
+
+For an explicitly configured FLA48200-P (verified Type 112, SubType 7250,
+single pack), the live client validates runtime data *before* publishing it:
+Batt voltage/current structure; SOC range; 16 individually plausible cell
+voltages; reported extrema; and pack-voltage consistency. Missing required
+measurements or impossible values trigger one fresh read-only retry. If the
+second reading is still invalid, the existing HA coordinator reports a
+failed update rather than treating corrupted values as fresh data.
+
+There is a safety exception: when hardware fault/warning registers contain
+a nonzero code, the frame is accepted by the validator even if some readings
+are implausible, so that actual BMS alarm information is not hidden by the
+validation. Missing warning registers remain unknown, never interpreted as
+zero.
+
+For every other battery model, the validation step is deliberately bypassed:
+legacy transport and parsing remain unchanged. In particular, valid -1 raw
+Batt current readings are preserved, even though that same number can be a
+sentinel in other fields.
+
+Tested with model-specific malformed frames, standby and synthetic alarm
+frames, retry/connection-loss simulation, plus real read-only FLA48200-P
+queries. Does not change BMS settings or inverter controls. For a P2.2
+rollback, restore feature-branch commit 64fa4e9 and restart Home Assistant.
+
 Model-specific sensors are created only when your battery/firmware reports
 their data. Sensors backed by the supplementary basic/settings/date commands
 are kept when one of those commands fails transiently during startup, allowing

@@ -100,6 +100,38 @@ class FelicityPayloadTests(unittest.TestCase):
         self.assertEqual(self.client._async_read_raw.await_count, 2)
         self.assertEqual(self.client._parse_real_payload(raw)["Batt"][1][0], -1)
 
+    def test_invalid_complete_realtime_frame_is_retried_before_optional_requests(self):
+        seen = []
+        def validate(d):
+            seen.append(d)
+            if "Batt" not in d or not d.get("Batt"):
+                raise api.FelicityApiError("invalid pack voltage")
+
+        self.client._runtime_validator = validate
+        self.client._async_read_raw_with_retry = AsyncMock(side_effect=[
+            '{"Batsoc":[[10000,1000,250000]]}',
+            '{"Batt":[[57500],[-1],[null]],"Batsoc":[[10000,1000,250000]]}',
+            '{"Type":112}',
+            '{"wCVP80":3450}',
+            '{"rssi":-70}',
+        ])
+        data = asyncio.run(self.client.async_get_data())
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(data["Batt"][0][0], 57500)
+        self.assertEqual(self.client._async_read_raw_with_retry.await_count, 5)
+
+    def test_invalid_real_payload_twice_does_not_publish_partial_frame(self):
+        def validate(d):
+            raise api.FelicityApiError("rejected physical measurements")
+
+        self.client._runtime_validator = validate
+        self.client._async_read_raw_with_retry = AsyncMock(
+            return_value='{"Batt":[[57500],[-1],[null]]}'
+        )
+        with self.assertRaisesRegex(api.FelicityApiError, "rejected"):
+            asyncio.run(self.client.async_get_data())
+        self.assertEqual(self.client._async_read_raw_with_retry.await_count, 2)
+
     def test_best_effort_payloads_recover_none_and_concatenated_json(self) -> None:
         self.client._async_read_raw_with_retry = AsyncMock(
             side_effect=[

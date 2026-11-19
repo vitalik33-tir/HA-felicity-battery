@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,9 +122,16 @@ class FelicityApiError(Exception):
 class FelicityClient:
     """TCP client for Felicity battery local API."""
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        runtime_validator: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self._host = host
         self._port = port
+        self._runtime_validator = runtime_validator
 
     async def async_get_data(self) -> dict:
         """Send commands and combine all data into one dict.
@@ -134,10 +141,23 @@ class FelicityClient:
         - wifilocalMonitor:get dev set infor    -> config / limits (multi-json)
         """
         # 1. Runtime data (critical - if this fails, the whole update fails)
-        real_raw = await self._async_read_raw_with_retry(
-            b"wifilocalMonitor:get dev real infor"
-        )
-        real = self._parse_real_payload(real_raw)
+        # A syntactically complete reply can still be a truncated/invalid
+        # measurement set. Retry once if the parser or model-specific
+        # validator rejects it, using the normal read-only TCP command.
+        for attempt in range(2):
+            real_raw = await self._async_read_raw_with_retry(
+                b"wifilocalMonitor:get dev real infor"
+            )
+            try:
+                real = self._parse_real_payload(real_raw)
+                if self._runtime_validator is not None:
+                    self._runtime_validator(real)
+                break
+            except FelicityApiError:
+                if attempt:
+                    raise
+                _LOGGER.debug("Invalid runtime payload; retrying real-time read")
+
         data: Dict[str, Any] = dict(real)
 
         # 2. Basic info (best effort)

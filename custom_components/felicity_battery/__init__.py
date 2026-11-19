@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import FelicityApiError, FelicityClient
+from .validation import validate_runtime
 from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -31,7 +32,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     host: str = entry.data["host"]
     port: int = entry.data["port"]
-    client = FelicityClient(host, port)
+
+    def _validate_runtime(data: dict) -> None:
+        result = validate_runtime(
+            data,
+            configured_model=(
+                entry.options.get("rated_model") or entry.data.get("model")
+            ),
+        )
+        if not result.valid:
+            raise FelicityApiError(
+                f"Invalid {result.reason} in FLA48200-P realtime telemetry"
+            )
+
+    client = FelicityClient(host, port, runtime_validator=_validate_runtime)
 
     async def _async_update_data():
         try:
